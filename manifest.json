@@ -1,0 +1,15 @@
+{
+  "name": "区域マンション一覧",
+  "short_name": "区域一覧",
+  "display": "browser",
+  "start_url": "/",
+  "background_color": "#f6f7f9",
+  "theme_color": "#1a73e8",
+  "icons": [
+    {
+      "src": "/area_door_pin_icon_180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
