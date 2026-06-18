@@ -1,5 +1,5 @@
 /**
- * 区域マンション一覧 ウェブアプリ（webapp.gs v1.1.3 訪問記録 入力対応・安全チェック追加）
+ * 区域マンション一覧 ウェブアプリ（webapp.gs v1.1.5 訪問記録 入力対応・安全チェック追加）
  * - 「保存」でセル（結果）とその真下（日付）に書き込みます。
  * - B列（最終訪問日）は保護されている可能性があるため更新しません。
  * v4.1からの追加点:
@@ -22,7 +22,7 @@ const WEBAPP = {
   COL_URL: 10,
 
   TITLE: '区域マンション一覧',
-  VERSION: 'v1.1.3',
+  VERSION: 'v1.1.5',
   OPEN_IN_APP: false,
   CACHE_SHEET: '座標キャッシュ',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
@@ -172,6 +172,36 @@ function normAddr_(s) {
     .replace(/\s+/g, '');
 }
 
+function cleanErrorMessage_(e) {
+  return String((e && e.message) ? e.message : e || '')
+    .replace(/^(Exception|Error):\s*/, '')
+    .trim();
+}
+
+function isPermissionErrorMessage_(message) {
+  const text = String(message || '');
+  const lower = text.toLowerCase();
+
+  return lower.indexOf('permission') !== -1 ||
+    lower.indexOf('access denied') !== -1 ||
+    lower.indexOf('not have permission') !== -1 ||
+    lower.indexOf('insufficient permissions') !== -1 ||
+    text.indexOf('権限') !== -1 ||
+    text.indexOf('アクセスが拒否') !== -1;
+}
+
+function friendlySheetAccessError_(e, purpose) {
+  const message = cleanErrorMessage_(e);
+
+  if (isPermissionErrorMessage_(message)) {
+    return purpose === 'write'
+      ? '権限がないため保存できませんでした。対象のスプレッドシートで編集権限があるか確認し、権限付与後にもう一度お試しください。'
+      : '権限がないため記録シートを開けませんでした。対象のスプレッドシートで閲覧権限があるか確認し、権限付与後にもう一度お試しください。';
+  }
+
+  return message || '不明なエラーが発生しました。';
+}
+
 /* ============================================================
  * 訪問記録 読み取り
  * ============================================================ */
@@ -185,7 +215,7 @@ function getVisitRecords(url) {
       };
     }
 
-    const sheet = openSheetByUrl_(url);
+    const sheet = openSheetByUrl_(url, 'read');
     if (!sheet) {
       return {
         ok: false,
@@ -251,7 +281,7 @@ function getVisitRecords(url) {
   } catch (e) {
     return {
       ok: false,
-      error: String(e)
+      error: friendlySheetAccessError_(e, 'read')
     };
   }
 }
@@ -282,7 +312,7 @@ function saveVisitRecord(p) {
       };
     }
 
-    const sheet = openSheetByUrl_(p.url);
+    const sheet = openSheetByUrl_(p.url, 'write');
     if (!sheet) {
       return {
         ok: false,
@@ -378,7 +408,7 @@ return {
   } catch (e) {
     return {
       ok: false,
-      error: String(e)
+      error: friendlySheetAccessError_(e, 'write')
     };
   } finally {
     lock.releaseLock();
@@ -448,11 +478,16 @@ function isAllowedSheetUrl_(url) {
   return allowed[key] === true;
 }
 
-function openSheetByUrl_(url) {
+function openSheetByUrl_(url, purpose) {
   const ids = parseSheetUrl_(url);
   if (!ids) return null;
 
-  const ss = SpreadsheetApp.openById(ids.fileId);
+  let ss;
+  try {
+    ss = SpreadsheetApp.openById(ids.fileId);
+  } catch (e) {
+    throw new Error(friendlySheetAccessError_(e, purpose));
+  }
 
   if (ids.gid !== null) {
     const all = ss.getSheets();
