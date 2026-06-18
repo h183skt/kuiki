@@ -1,10 +1,11 @@
 /**
- * 区域マンション一覧 ウェブアプリ（webapp.gs v1.1.4 権限エラー表示改善）
+ * 区域マンション一覧 ウェブアプリ（webapp.gs v1.1.3 訪問記録 入力対応・安全チェック追加）
  * - 「保存」でセル（結果）とその真下（日付）に書き込みます。
  * - B列（最終訪問日）は保護されている可能性があるため更新しません。
- * - 入口ページ・マンション記録・保存時の権限エラーを、利用者向けの分かりやすい文言で表示します。
- * - 統合シートJ列が HYPERLINK 関数でもURLを読み取れるようにしています。
- * - 表示モード（一覧/地図）の復元にも対応しています。
+ * v4.1からの追加点:
+ * ・統合シートJ列に登録されているシートURL以外は、読み取り・保存できないようにしました。
+ * ・保存時に、結果・行・列の検証を追加しました。
+ * ・今日の日付をクライアント側でも仮生成し、サーバー取得前でも日付が入るようにしました。
  *
  * 更新手順:
  * 1. webapp ファイルの中身をこのコードで丸ごと置き換えて保存
@@ -21,7 +22,7 @@ const WEBAPP = {
   COL_URL: 10,
 
   TITLE: '区域マンション一覧',
-  VERSION: 'v1.1.4',
+  VERSION: 'v1.1.3',
   OPEN_IN_APP: false,
   CACHE_SHEET: '座標キャッシュ',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
@@ -178,20 +179,18 @@ function normAddr_(s) {
 function getVisitRecords(url) {
   try {
     if (!isAllowedSheetUrl_(url)) {
-      return appErrorResponse_(
-        'このマンション記録は開けません',
-        'このシートは入口リストに登録されていないため、アプリから開けません。管理者に統合シートのURL登録を確認してもらってください。',
-        'NOT_ALLOWED'
-      );
+      return {
+        ok: false,
+        error: 'このシートは統合リストに登録されていないため開けません。'
+      };
     }
 
     const sheet = openSheetByUrl_(url);
     if (!sheet) {
-      return appErrorResponse_(
-        'マンション記録を開けません',
-        'URLから対象のシートを特定できませんでした。管理者に統合シートのURLを確認してもらってください。',
-        'SHEET_NOT_FOUND'
-      );
+      return {
+        ok: false,
+        error: 'URLからシートを特定できませんでした。'
+      };
     }
 
     const lastRow = sheet.getLastRow();
@@ -250,7 +249,10 @@ function getVisitRecords(url) {
       results: WEBAPP.REC_RESULTS
     };
   } catch (e) {
-    return friendlyServerError_(e, 'read');
+    return {
+      ok: false,
+      error: String(e)
+    };
   }
 }
 
@@ -266,49 +268,58 @@ function saveVisitRecord(p) {
   try {
     lock.waitLock(15000);
   } catch (e) {
-    return appErrorResponse_(
-      '保存できませんでした',
-      '他の処理が実行中です。少し待ってから、もう一度お試しください。',
-      'LOCK_TIMEOUT'
-    );
+    return {
+      ok: false,
+      error: '他の処理が実行中です。少し待って再度お試しください。'
+    };
   }
 
   try {
     if (!isAllowedSheetUrl_(p.url)) {
-      return appErrorResponse_(
-        '保存できませんでした',
-        'このシートは入口リストに登録されていないため、アプリから保存できません。管理者に統合シートのURL登録を確認してもらってください。',
-        'NOT_ALLOWED'
-      );
+      return {
+        ok: false,
+        error: 'このシートは統合リストに登録されていないため保存できません。'
+      };
     }
 
     const sheet = openSheetByUrl_(p.url);
     if (!sheet) {
-      return appErrorResponse_(
-        '保存できませんでした',
-        'URLから対象のシートを特定できませんでした。管理者に統合シートのURLを確認してもらってください。',
-        'SHEET_NOT_FOUND'
-      );
+      return {
+        ok: false,
+        error: 'URLからシートを特定できませんでした。'
+      };
     }
 
     const rowTop = Number(p.rowTop);
     const cellIndex = Number(p.cellIndex);
 
     if (!Number.isInteger(rowTop) || rowTop < WEBAPP.REC_DATA_START_ROW) {
-      return appErrorResponse_('保存できませんでした', '不正な行位置が指定されました。画面を再読み込みしてから、もう一度お試しください。', 'INVALID_ROW');
+      return {
+        ok: false,
+        error: '不正な行位置が指定されました。'
+      };
     }
 
     if ((rowTop - WEBAPP.REC_DATA_START_ROW) % 2 !== 0) {
-      return appErrorResponse_('保存できませんでした', '不正な行位置が指定されました。画面を再読み込みしてから、もう一度お試しください。', 'INVALID_ROW');
+      return {
+        ok: false,
+        error: '不正な行位置が指定されました。'
+      };
     }
 
     if (!Number.isInteger(cellIndex) || cellIndex < 0 || cellIndex >= WEBAPP.REC_VISIT_COLS) {
-      return appErrorResponse_('保存できませんでした', '不正なセル位置が指定されました。画面を再読み込みしてから、もう一度お試しください。', 'INVALID_CELL');
+      return {
+        ok: false,
+        error: '不正なセル位置が指定されました。'
+      };
     }
 
     const lastRow = sheet.getLastRow();
     if (rowTop + 1 > lastRow) {
-      return appErrorResponse_('保存できませんでした', '指定された部屋行がシート範囲外です。画面を再読み込みしてから、もう一度お試しください。', 'ROW_OUT_OF_RANGE');
+      return {
+        ok: false,
+        error: '指定された部屋行がシート範囲外です。'
+      };
     }
 
     const resultRow = rowTop;
@@ -317,14 +328,20 @@ function saveVisitRecord(p) {
 
     const roomLabel = String(sheet.getRange(resultRow, WEBAPP.REC_ROOM_COL).getDisplayValue() || '').trim();
     if (!roomLabel) {
-      return appErrorResponse_('保存できませんでした', '指定された行に部屋番号が見つかりません。画面を再読み込みしてから、もう一度お試しください。', 'ROOM_NOT_FOUND');
+      return {
+        ok: false,
+        error: '指定された行に部屋番号が見つかりません。'
+      };
     }
 
     const newResult = String(p.result || '').trim();
     const newDate = String(p.date || '').trim();
 
     if (newResult && WEBAPP.REC_RESULTS.indexOf(newResult) === -1) {
-      return appErrorResponse_('保存できませんでした', '不正な結果が指定されました。画面を再読み込みしてから、もう一度お試しください。', 'INVALID_RESULT');
+      return {
+        ok: false,
+        error: '不正な結果が指定されました。'
+      };
     }
 
     const curResult = String(sheet.getRange(resultRow, col).getDisplayValue() || '').trim();
@@ -337,8 +354,6 @@ function saveVisitRecord(p) {
       return {
         ok: false,
         conflict: true,
-        title: 'ほかの人が先に更新しました',
-        error: 'ほかの人が先に入力したようです。最新の状態に更新します。',
         current: {
           result: curResult,
           date: curDate
@@ -346,140 +361,28 @@ function saveVisitRecord(p) {
       };
     }
 
-    sheet.getRange(resultRow, col).setValue(newResult);
-    sheet.getRange(dateRow, col).setNumberFormat('@').setValue(newDate);
+sheet.getRange(resultRow, col).setValue(newResult);
+sheet.getRange(dateRow, col).setNumberFormat('@').setValue(newDate);
 
-    // B列（最終訪問日）は保護されている可能性があるため、Webアプリからは更新しません。
-    SpreadsheetApp.flush();
+// B列（最終訪問日）は保護されている可能性があるため、Webアプリからは更新しません。
 
-    return {
-      ok: true,
-      saved: {
-        result: newResult,
-        date: newDate
-      }
-    };
+SpreadsheetApp.flush();
+
+return {
+  ok: true,
+  saved: {
+    result: newResult,
+    date: newDate
+  }
+};
   } catch (e) {
-    return friendlyServerError_(e, 'save');
+    return {
+      ok: false,
+      error: String(e)
+    };
   } finally {
     lock.releaseLock();
   }
-}
-
-/* ============================================================
- * エラー表示・権限エラー判定
- * ============================================================ */
-
-function appErrorResponse_(title, body, code, detail) {
-  return {
-    ok: false,
-    title: title,
-    error: body,
-    body: body,
-    code: code || 'ERROR',
-    detail: detail || ''
-  };
-}
-
-function friendlyServerError_(e, context) {
-  const msg = getErrorMessage_(e);
-
-  if (isPermissionError_(msg)) {
-    if (context === 'read') {
-      return appErrorResponse_(
-        'このマンション記録を開く権限がありません',
-        'このマンションの記録を表示するには、対象シートへの閲覧権限が必要です。\n\n管理者に、あなたのGoogleアカウントがこのマンションシート、または担当者グループに共有されているか確認してもらってください。\n\n追加された直後の場合は、数分待ってからもう一度開いてください。',
-        'NO_RECORD_PERMISSION',
-        msg
-      );
-    }
-
-    if (context === 'save') {
-      return appErrorResponse_(
-        'このマンション記録を保存する権限がありません',
-        'このマンションの記録を保存するには、対象シートへの編集権限が必要です。\n\n閲覧だけの権限では保存できません。管理者に、あなたのGoogleアカウントがこのマンションシート、または担当者グループに編集者として共有されているか確認してもらってください。\n\n追加された直後の場合は、数分待ってからもう一度保存してください。',
-        'NO_SAVE_PERMISSION',
-        msg
-      );
-    }
-
-    return appErrorResponse_(
-      'この区域アプリを開く権限がありません',
-      'このアプリを使うには、入口用の「統合シート」への閲覧権限が必要です。\n\n管理者に、あなたのGoogleアカウントが「区域アプリ利用者」グループに入っているか、または統合シートに閲覧者として共有されているか確認してもらってください。\n\n追加された直後の場合は、数分待ってから開き直してください。',
-      'NO_APP_PERMISSION',
-      msg
-    );
-  }
-
-  return appErrorResponse_(
-    context === 'save' ? '保存できませんでした' : '読み込みできませんでした',
-    '予期しないエラーが発生しました。時間をおいてもう一度お試しください。改善しない場合は、管理者に連絡してください。',
-    'UNEXPECTED_ERROR',
-    msg
-  );
-}
-
-function getErrorMessage_(e) {
-  if (!e) return '';
-  if (e.message) return String(e.message);
-  return String(e);
-}
-
-function isPermissionError_(msg) {
-  msg = String(msg || '');
-  const patterns = [
-    'アクセスする権限がありません',
-    '権限がありません',
-    '権限',
-    'アクセスできません',
-    'You do not have permission',
-    'do not have permission',
-    'Permission denied',
-    'Access denied',
-    'The caller does not have permission',
-    'requested document',
-    'ドキュメントにアクセス'
-  ];
-
-  return patterns.some(p => msg.indexOf(p) !== -1);
-}
-
-function buildErrorOutput_(e) {
-  const res = friendlyServerError_(e, 'app');
-  const detail = res.detail ? '<div class="sub">エラー詳細: ' + escHtml_(res.detail) + '</div>' : '';
-
-  const html =
-    '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">' +
-    '<meta name="viewport" content="width=device-width, initial-scale=1">' +
-    '<style>' +
-    'body{margin:0;background:#f6f7f9;color:#202124;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;}' +
-    '.wrap{max-width:560px;margin:48px auto;padding:0 18px;}' +
-    '.card{background:#fff;border:1px solid #e3e6ea;border-radius:16px;padding:22px 20px;box-shadow:0 2px 10px rgba(0,0,0,.06);}' +
-    'h1{font-size:20px;margin:0 0 12px;color:#d93025;line-height:1.4;}' +
-    'p{font-size:15px;line-height:1.8;margin:0;color:#3c4043;white-space:pre-line;}' +
-    '.sub{margin-top:18px;font-size:12px;color:#5f6368;word-break:break-all;}' +
-    '.btn{display:inline-block;margin-top:18px;padding:10px 14px;border-radius:10px;background:#1a73e8;color:#fff;text-decoration:none;font-weight:700;font-size:14px;}' +
-    '</style></head><body>' +
-    '<div class="wrap"><div class="card">' +
-    '<h1>' + escHtml_(res.title) + '</h1>' +
-    '<p>' + escHtml_(res.body || res.error) + '</p>' +
-    '<a class="btn" href="javascript:location.reload()">再読み込み</a>' +
-    detail +
-    '</div></div>' +
-    '</body></html>';
-
-  return HtmlService.createHtmlOutput(html)
-    .setTitle('アクセスできません')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-}
-
-function escHtml_(s) {
-  return String(s || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 /* ============================================================
@@ -527,15 +430,12 @@ function getAllowedSheetKeys_() {
   const lastRow = sh.getLastRow();
   if (lastRow < 2) return allowed;
 
-  const range = sh.getRange(2, WEBAPP.COL_URL, lastRow - 1, 1);
-  const displays = range.getDisplayValues();
-  const formulas = range.getFormulas();
+  const urls = sh.getRange(2, WEBAPP.COL_URL, lastRow - 1, 1).getDisplayValues();
 
-  for (let i = 0; i < displays.length; i++) {
-    const url = urlFromCell_(displays[i][0], formulas[i][0]);
-    const key = sheetKeyFromUrl_(url);
+  urls.forEach(row => {
+    const key = sheetKeyFromUrl_(row[0]);
     if (key) allowed[key] = true;
-  }
+  });
 
   return allowed;
 }
@@ -581,31 +481,11 @@ function parseSheetUrl_(url) {
   };
 }
 
-function urlFromCell_(display, formula) {
-  const fromFormula = urlFromFormula_(formula);
-  return fromFormula || String(display || '');
-}
-
-function urlFromFormula_(formula) {
-  if (!formula) return '';
-
-  const m = String(formula).match(/^=HYPERLINK\(\s*"([^"]+)"/i);
-  return m ? m[1] : '';
-}
-
 /* ============================================================
  * ウェブアプリ本体
  * ============================================================ */
 
 function doGet() {
-  try {
-    return doGetMain_();
-  } catch (e) {
-    return buildErrorOutput_(e);
-  }
-}
-
-function doGetMain_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName(WEBAPP.SHEET_NAME);
 
@@ -644,7 +524,7 @@ function doGetMain_() {
         name: name,
         type: display[r][WEBAPP.COL_TYPE - 1],
         addr: addr,
-        url: urlFromCell_(display[r][WEBAPP.COL_URL - 1], formulas[r][WEBAPP.COL_URL - 1]),
+        url: display[r][WEBAPP.COL_URL - 1],
         map: urlFromFormula_(formulas[r][WEBAPP.COL_MAP - 1]),
         lat: c ? c[0] : null,
         lng: c ? c[1] : null,
@@ -653,8 +533,8 @@ function doGetMain_() {
   }
 
   const dataJson = JSON.stringify(rows).replace(/</g, '\\u003c');
-  const colorsJson = JSON.stringify(WEBAPP.TYPE_COLORS).replace(/</g, '\\u003c');
-  const resultsJson = JSON.stringify(WEBAPP.REC_RESULTS).replace(/</g, '\\u003c');
+  const colorsJson = JSON.stringify(WEBAPP.TYPE_COLORS);
+  const resultsJson = JSON.stringify(WEBAPP.REC_RESULTS);
 
   return HtmlService.createHtmlOutput(buildHtml_(dataJson, colorsJson, resultsJson))
     .setTitle(WEBAPP.TITLE)
@@ -662,261 +542,255 @@ function doGetMain_() {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
-function buildHtml_(dataJson, colorsJson, resultsJson) {
-  return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>
-:root{--accent:#1a73e8;--bg:#f6f7f9;--card:#fff;--line:#e3e6ea;--text:#202124;--sub:#5f6368;--green:#34a853;}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{margin:0;height:100%;}
-body{font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;}
-header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 12px;z-index:1001;}
-.topbar{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-h1{font-size:16px;margin:0;flex:1;}
-.ver{font-size:11px;color:var(--sub);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-right:4px;white-space:nowrap;}
-.toggle{display:flex;border:1px solid var(--accent);border-radius:8px;overflow:hidden;}
-.toggle button{font-size:13px;padding:6px 14px;border:0;background:var(--card);color:var(--accent);}
-.toggle button.on{background:var(--accent);color:#fff;}
-#q{width:100%;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);}
-#areas{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;-webkit-overflow-scrolling:touch;}
-#areas button{flex:0 0 auto;font-size:13px;padding:6px 12px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:var(--sub);}
-#areas button.on{background:var(--accent);border-color:var(--accent);color:#fff;}
-#count{font-size:12px;color:var(--sub);margin:6px 2px 0;}
-#list{flex:1;overflow-y:auto;padding:8px 12px 40px;}
-#mapwrap{flex:1;display:none;position:relative;}
-#map{position:absolute;inset:0;}
-#locate{position:absolute;right:12px;bottom:24px;z-index:1000;font-size:14px;font-weight:600;padding:10px 14px;border-radius:24px;border:1px solid var(--line);background:var(--card);color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.2);}
-#locate.on{background:var(--accent);border-color:var(--accent);color:#fff;}
-.ghead{font-size:13px;font-weight:700;color:var(--sub);margin:14px 2px 6px;}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;}
-.info{flex:1;min-width:0;}
-.name{font-size:16px;font-weight:600;}
-.name a{color:var(--accent);text-decoration:none;cursor:pointer;}
-.meta{font-size:12.5px;color:var(--sub);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;}
-.badge{background:#e8f0fe;color:var(--accent);border-radius:6px;padding:1px 7px;font-weight:600;}
-.maplink{flex:0 0 auto;font-size:13px;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:6px 10px;}
-.pop .pname{font-size:15px;font-weight:700;margin-bottom:2px;}
-.pop .paddr{font-size:12px;color:var(--sub);}
-.pop .dirrow{display:flex;gap:5px;margin-top:7px;}
-.pop .dirlink{flex:1;text-align:center;font-size:12px;font-weight:600;background:var(--green);color:#fff;border-radius:8px;padding:5px 4px;text-decoration:none;white-space:nowrap;}
-.pop .recbtn{display:block;text-align:center;margin-top:5px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;border-radius:8px;padding:5px;cursor:pointer;}
-.pop .pbadge{display:inline-block;font-size:11px;background:#e8f0fe;color:var(--accent);border-radius:5px;padding:0 6px;font-weight:600;margin-bottom:3px;}
-.me-wrap{position:relative;width:36px;height:40px;}
-.me-pulse{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:rgba(52,168,83,.9);animation:mepulse 1.6s ease-out infinite;}
-@keyframes mepulse{0%{box-shadow:0 0 0 0 rgba(52,168,83,.6);}100%{box-shadow:0 0 0 22px rgba(52,168,83,0);}}
-.me-emoji{position:absolute;left:50%;bottom:0;transform:translateX(-50%);font-size:34px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));}
-.empty{text-align:center;color:var(--sub);padding:40px 0;}
-#rec{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:2000;display:none;}
-#recinner{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;}
-#rechead{background:var(--card);border-bottom:1px solid var(--line);padding:10px 12px;display:flex;align-items:center;gap:10px;}
-#rechead h2{font-size:16px;margin:0;flex:1;}
-#recclose{font-size:14px;font-weight:600;color:var(--accent);background:none;border:1px solid var(--accent);border-radius:8px;padding:6px 12px;}
-#recbody{flex:1;overflow:auto;padding:10px;}
-.rectable{border-collapse:collapse;font-size:12px;white-space:nowrap;}
-.rectable th,.rectable td{border:1px solid var(--line);padding:4px 6px;text-align:center;}
-.rectable thead th{background:#0b8043;color:#fff;position:sticky;top:0;z-index:2;}
-.rectable thead th.curp{background:var(--accent);}
-.rectable .rm{position:sticky;left:0;background:#0b8043;color:#fff;font-weight:700;z-index:1;}
-.rectable td.cell{cursor:pointer;min-width:62px;}
-.rectable td.cell:active{background:#fff3cd;}
-.rectable .res{font-weight:600;min-height:14px;}
-.rectable .date{color:var(--sub);font-size:11px;min-height:12px;}
-.rectable .filled{background:#e8f0fe;}
-.recnote{font-size:12px;color:var(--sub);margin:0 0 8px;}
-.recerror{background:#fff;border:1px solid #fad2cf;border-radius:14px;padding:16px 14px;max-width:560px;margin:4px auto;color:#3c4043;}
-.recerror h3{font-size:17px;line-height:1.45;margin:0 0 10px;color:#d93025;}
-.recerror p{font-size:14px;line-height:1.8;margin:0;white-space:pre-line;}
-.recerror .small{font-size:11px;color:#5f6368;margin-top:12px;word-break:break-all;}
-.recerror button{margin-top:14px;font-size:14px;font-weight:700;padding:9px 12px;border-radius:10px;border:0;background:var(--accent);color:#fff;}
-#edit{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;display:none;}
-#editbox{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:16px 16px 0 0;padding:14px 16px 22px;max-height:calc(100vh - 24px);overflow:auto;}
-.edithead{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px;}
-#edittitle{font-size:18px;font-weight:800;line-height:1.35;color:#d93025;margin:0;flex:1;}
-#editclose{flex:0 0 auto;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:24px;line-height:1;color:var(--sub);background:none;border:1px solid var(--line);border-radius:999px;padding:0;}
-.resrow{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
-.resbtn{flex:1 0 28%;font-size:14px;padding:10px 6px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);}
-.resbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
-.resbtn.clear{background:#fff;color:#d93025;border-color:#d93025;}
-.resbtn.clear.on{background:#d93025;border-color:#d93025;color:#fff;}
-.daterow{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
-.daterow label{font-size:13px;color:var(--sub);}
-#editdate{flex:1;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;}
-.todaywrap{position:relative;flex:0 0 auto;display:flex;}
-#today{font-size:12px;padding:8px 10px;border:1px solid var(--accent);color:var(--accent);background:none;border-radius:8px;pointer-events:none;}
-#editdatepick{position:absolute;inset:0;opacity:0;z-index:1;cursor:pointer;}
-.btnrow{display:flex;gap:8px;}
-.btnrow button{flex:1;font-size:15px;font-weight:700;padding:12px;border-radius:10px;border:0;}
-#save{background:var(--accent);color:#fff;}
-</style></head><body>
-<header><div class="topbar"><h1>${WEBAPP.TITLE}</h1>
-<span class="ver">${WEBAPP.VERSION}</span>
-<div class="toggle"><button id="bList">一覧</button><button id="bMap" class="on">地図</button></div></div>
-<input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off">
-<div id="areas"></div><div id="count"></div></header>
-<main id="list"></main>
-<div id="mapwrap"><div id="map"></div><button id="locate">現在地</button></div>
-<div id="rec"><div id="recinner"><div id="rechead"><h2 id="rectitle">訪問記録</h2><button id="recclose">閉じる</button></div><div id="recbody"></div></div></div>
-<div id="edit"><div id="editbox">
-<div class="edithead"><p id="edittitle">記録</p><button id="editclose" aria-label="閉じる">×</button></div>
-<div class="resrow" id="resrow"></div>
-<div class="daterow"><label>日付</label><input id="editdate" type="text" placeholder="例 6/14 (土)"><div class="todaywrap"><button id="today" type="button">日付選択</button><input id="editdatepick" type="date" aria-label="日付を選択"></div></div>
-<div class="btnrow"><button id="save">保存</button></div>
-</div></div>
-<script>
-const DATA=${dataJson};
-const COLORS=${colorsJson};
-const RESULTS=${resultsJson};
-const DEFC="${WEBAPP.DEFAULT_COLOR}";
-const STANDALONE=(navigator.standalone===true)||window.matchMedia("(display-mode: standalone)").matches;
-let curArea="";let curQ="";let mode="map";let map=null;let layer=null;
-let watchId=null;let meMarker=null;let meCircle=null;let lastPos=null;let firstFix=true;
-let savedView=null;
-let curRec=null;
-let curEdit=null;
-function pad2(n){return String(n).padStart(2,"0");}
-function localTodayLabel(){const d=new Date();const w=["日","月","火","水","木","金","土"][d.getDay()];return (d.getMonth()+1)+"/"+d.getDate()+" ("+w+")";}
-function localTodayIso(){const d=new Date();return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());}
-function labelFromIsoDate(s){const m=String(s||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return "";const y=Number(m[1]),mo=Number(m[2]),da=Number(m[3]);const w=["日","月","火","水","木","金","土"][new Date(y,mo-1,da).getDay()];return mo+"/"+da+" ("+w+")";}
-function isoFromDisplayDate(s){const t=String(s||"").trim();if(!t)return "";if(/^\d{4}-\d{2}-\d{2}$/.test(t))return t;const m=t.match(/^(\d{1,2})\/(\d{1,2})/);if(!m)return "";const y=(new Date()).getFullYear(),mo=Number(m[1]),da=Number(m[2]),dt=new Date(y,mo-1,da);if(dt.getFullYear()!==y||dt.getMonth()+1!==mo||dt.getDate()!==da)return "";return y+"-"+pad2(mo)+"-"+pad2(da);}
-let todayStr=localTodayLabel();
-google.script.run.withSuccessHandler(s=>{if(s)todayStr=s;}).getTodayLabel();
-function saveState(){try{sessionStorage.setItem("st",JSON.stringify({a:curArea,q:curQ,m:mode,v:savedView}));}catch(e){}}
-let initMode="map";
-try{const st=JSON.parse(sessionStorage.getItem("st")||"{}");curArea=st.a||"";curQ=st.q||"";if(st.m==="list"||st.m==="map")initMode=st.m;if(st.v)savedView=st.v;}catch(e){}
-const areas=[...new Set(DATA.map(r=>r.area))];
-const areaBox=document.getElementById("areas");
-function chip(label,val){const b=document.createElement("button");b.textContent=label;b.dataset.val=val;b.onclick=()=>{curArea=val;render();};areaBox.appendChild(b);}
-chip("すべて","");areas.forEach(a=>chip(String(a||"").replace(/エリア$/,""),a));
-document.getElementById("q").addEventListener("input",e=>{curQ=e.target.value.trim();render();});
-document.getElementById("bList").onclick=()=>setMode("list");
-document.getElementById("bMap").onclick=()=>setMode("map");
-document.getElementById("locate").onclick=locate;
-document.getElementById("recclose").onclick=closeRec;
-document.getElementById("editclose").onclick=closeEdit;
-document.getElementById("edit").onclick=e=>{if(e.target===e.currentTarget)closeEdit();};
-const editDateInput=document.getElementById("editdate");
-const editDatePicker=document.getElementById("editdatepick");
-function syncDatePickerFromText(){editDatePicker.value=isoFromDisplayDate(editDateInput.value)||localTodayIso();}
-editDateInput.addEventListener("input",syncDatePickerFromText);
-editDatePicker.addEventListener("input",e=>{editDateInput.value=labelFromIsoDate(e.target.value)||"";});
-editDatePicker.addEventListener("change",e=>{editDateInput.value=labelFromIsoDate(e.target.value)||"";});
-editDatePicker.addEventListener("click",syncDatePickerFromText);
-document.getElementById("save").onclick=doSave;
-function setMode(m){mode=m;
- document.getElementById("bList").classList.toggle("on",m==="list");
- document.getElementById("bMap").classList.toggle("on",m==="map");
- document.getElementById("list").style.display=(m==="list")?"":"none";
- document.getElementById("mapwrap").style.display=(m==="map")?"flex":"none";
- if(m==="map"){initMap();setTimeout(()=>map.invalidateSize(),50);}render();}
-function locate(){if(!navigator.geolocation){alert("この端末では位置情報を利用できません。");return;}
- if(watchId!==null){if(lastPos)map.setView(lastPos,Math.max(map.getZoom(),16));return;}
- firstFix=true;document.getElementById("locate").classList.add("on");
- watchId=navigator.geolocation.watchPosition(pos=>{lastPos=[pos.coords.latitude,pos.coords.longitude];const acc=pos.coords.accuracy||30;
-  if(!meMarker){meCircle=L.circle(lastPos,{radius:acc,color:"#34a853",weight:1,fillColor:"#34a853",fillOpacity:0.12}).addTo(map);
-   const meIcon=L.divIcon({className:"",html:"<div class=me-wrap><div class=me-pulse></div><div class=me-emoji>\\ud83d\\udccd</div></div>",iconSize:[36,40],iconAnchor:[18,38]});
-   meMarker=L.marker(lastPos,{icon:meIcon,zIndexOffset:1000}).addTo(map);
-  }else{meMarker.setLatLng(lastPos);meCircle.setLatLng(lastPos);meCircle.setRadius(acc);}
-  if(firstFix){firstFix=false;map.setView(lastPos,16);}
- },err=>{stopLocate();if(err.code===1)alert("位置情報の利用が許可されていません。");else alert("現在地を取得できませんでした（"+err.message+"）");
- },{enableHighAccuracy:true,maximumAge:5000,timeout:15000});}
-function stopLocate(){if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}document.getElementById("locate").classList.remove("on");}
-function hits_(){const q=curQ.toLowerCase();return DATA.filter(r=>(!curArea||r.area===curArea)&&(!q||String(r.name||"").toLowerCase().includes(q)||String(r.addr||"").toLowerCase().includes(q)));}
-function render(){[...areaBox.children].forEach(b=>b.classList.toggle("on",b.dataset.val===curArea));
- const hits=hits_();document.getElementById("count").textContent=hits.length+" 件"+(mode==="map"?"（ピン "+hits.filter(r=>r.lat!==null).length+"）":"");
- if(mode==="list")renderList(hits);else renderMap(hits);saveState();}
-function renderList(hits){const list=document.getElementById("list");list.innerHTML="";
- if(hits.length===0){list.innerHTML="<div class=empty>該当なし</div>";return;}let lastArea=null;
- hits.forEach(r=>{if(r.area!==lastArea){lastArea=r.area;const h=document.createElement("div");h.className="ghead";h.textContent=r.area;list.appendChild(h);}
-  const c=document.createElement("div");c.className="card";
-  const a=document.createElement("a");a.textContent=r.name;a.onclick=()=>openRec(r);
-  const info=document.createElement("div");info.className="info";
-  const nm=document.createElement("div");nm.className="name";nm.appendChild(a);
-  const meta=document.createElement("div");meta.className="meta";
-  meta.innerHTML=(r.type?"<span class=badge>"+esc(r.type)+"</span>":"")+"<span>"+esc(r.addr)+"</span>";
-  info.appendChild(nm);info.appendChild(meta);
-  const mapa=document.createElement("a");mapa.className="maplink";mapa.textContent="Map";
-  mapa.href="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(r.name+" "+r.addr);mapa.target="_blank";mapa.rel="noopener";
-  c.appendChild(info);c.appendChild(mapa);list.appendChild(c);});}
-function initMap(){if(map)return;map=L.map("map");
- L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
- layer=L.layerGroup().addTo(map);
- if(savedView&&savedView.c){map.setView(savedView.c,savedView.z);}else{map.setView([35.62,139.57],14);}
- map.on("moveend",()=>{savedView={c:[map.getCenter().lat,map.getCenter().lng],z:map.getZoom()};saveState();});}
-function renderMap(hits){if(!map)return;layer.clearLayers();const pts=[];
- hits.forEach(r=>{if(r.lat===null)return;pts.push([r.lat,r.lng]);const col=COLORS[r.type]||DEFC;
-  const mk=L.circleMarker([r.lat,r.lng],{radius:9,color:"#fff",weight:2,fillColor:col,fillOpacity:0.95});
-  const dirBase="https://www.google.com/maps/dir/?api=1&destination="+r.lat+","+r.lng+"&travelmode=";
-  const dirBtns="<div class=dirrow>"+
-   "<a class=dirlink href=\""+dirBase+"walking\" target=\"_blank\" rel=\"noopener\">🚶 徒歩</a>"+
-   "<a class=dirlink href=\""+dirBase+"bicycling\" target=\"_blank\" rel=\"noopener\">🚲 自転車</a>"+
-   "<a class=dirlink href=\""+dirBase+"driving\" target=\"_blank\" rel=\"noopener\">🚗 車</a></div>";
-  const popId="rb_"+Math.random().toString(36).slice(2);
-  mk.bindPopup("<div class=pop>"+(r.type?"<span class=pbadge>"+esc(r.type)+"</span><br>":"")+
-   "<div class=pname>"+esc(r.name)+"</div><div class=paddr>"+esc(r.addr)+"</div>"+dirBtns+
-   "<div class=recbtn id="+popId+">訪問記録を開く</div></div>");
-  mk.on("popupopen",()=>{const el=document.getElementById(popId);if(el)el.onclick=()=>openRec(r);});
-  mk.addTo(layer);});
- if(pts.length>0&&watchId===null&&!savedView)map.fitBounds(pts,{padding:[30,30],maxZoom:17});}
-function openRec(r){const m=document.getElementById("rec");m.style.display="block";
- document.getElementById("rectitle").textContent=r.name;
- const body=document.getElementById("recbody");body.innerHTML="<p class=recnote>読み込み中…</p>";
- if(!r.url){body.innerHTML=errorHtml({title:"この建物にはシートURLがありません",error:"管理者に、統合シートのURL欄を確認してもらってください。"},false);return;}
- google.script.run.withSuccessHandler(res=>{curRec={r:r,data:res};renderRec();}).withFailureHandler(err=>{
-  body.innerHTML=errorHtml({title:"読み込みできませんでした",error:"通信またはアプリ側の問題で、訪問記録を読み込めませんでした。時間をおいてもう一度お試しください。",detail:String(err)},true);
- }).getVisitRecords(r.url);}
-function closeRec(){closeEdit();document.getElementById("rec").style.display="none";curRec=null;}
-function currentPeriodIndex(){return Math.floor(new Date().getMonth()/3);}
-function renderRec(){const body=document.getElementById("recbody");const res=curRec.data;
- if(!res||!res.ok){body.innerHTML=errorHtml(res||{title:"読み込みできませんでした",error:"不明なエラーが発生しました。"},true);return;}
- if(!res.rooms||res.rooms.length===0){body.innerHTML="<p class=recnote>部屋データが見つかりませんでした。</p>";return;}
- const periods=res.periods;const reps=["1回目","2回目","3回目"];const curPi=currentPeriodIndex();
- let h="<p class=recnote>セルをタップして記録を入力できます。</p>";
- h+="<table class=rectable><thead><tr><th class=rm>部屋</th>";
- periods.forEach((p,pi)=>{reps.forEach(rep=>{h+="<th"+(pi===curPi?" class=\"curp\"":"")+">"+esc(p)+"<br>"+rep+"</th>";});});
- h+="</tr></thead><tbody>";
- res.rooms.forEach((room,ri)=>{h+="<tr><td class=rm>"+esc(room.room)+"</td>";
-  room.cells.forEach((cell,ci)=>{const f=(cell.result||cell.date)?" filled":"";
-   h+="<td class=\"cell"+f+"\" data-ri="+ri+" data-ci="+ci+"><div class=res>"+esc(cell.result)+"</div><div class=date>"+esc(cell.date)+"</div></td>";});
-  h+="</tr>";});
- h+="</tbody></table>";body.innerHTML=h;
- [...body.querySelectorAll("td.cell")].forEach(td=>{td.onclick=()=>openEdit(Number(td.dataset.ri),Number(td.dataset.ci));});}
-function errorHtml(res,showReload){
- const title=esc(res&&res.title?res.title:"エラーが発生しました");
- const msg=esc(res&&(res.body||res.error)?(res.body||res.error):"時間をおいてもう一度お試しください。");
- const detail=(res&&res.detail)?"<div class=small>詳細: "+esc(res.detail)+"</div>":"";
- const btn=showReload?"<button onclick=\"openRec(curRec.r)\">もう一度読み込む</button>":"";
- return "<div class=recerror><h3>"+title+"</h3><p>"+msg+"</p>"+btn+detail+"</div>";
+function urlFromFormula_(formula) {
+  if (!formula) return '';
+
+  const m = String(formula).match(/^=HYPERLINK\(\s*"([^"]+)"/i);
+  return m ? m[1] : '';
 }
-function openEdit(ri,ci){const room=curRec.data.rooms[ri];const cell=room.cells[ci];
- curEdit={ri:ri,ci:ci,chosen:cell.result||"",clearMode:false};
- document.getElementById("edittitle").textContent=room.room+"号室　"+periodLabel(ci);
- const rr=document.getElementById("resrow");rr.innerHTML="";
- function pickResult(btn,name,isClear){curEdit.chosen=isClear?"":name;curEdit.clearMode=!!isClear;[...rr.children].forEach(x=>x.classList.remove("on"));btn.classList.add("on");
-  const d=document.getElementById("editdate");if(isClear){d.value="";}else if(!d.value){d.value=todayStr||"";}syncDatePickerFromText();}
- RESULTS.forEach(name=>{const b=document.createElement("button");b.className="resbtn"+(name===cell.result?" on":"");b.textContent=name;
-  b.onclick=()=>pickResult(b,name,false);rr.appendChild(b);});
- if(cell.result||cell.date){const clearBtn=document.createElement("button");clearBtn.className="resbtn clear";clearBtn.textContent="クリア";
-  clearBtn.onclick=()=>pickResult(clearBtn,"",true);rr.appendChild(clearBtn);}
- editDateInput.value=cell.date||"";syncDatePickerFromText();
- document.getElementById("edit").style.display="block";}
-function periodLabel(ci){const periods=["1〜3月","4〜6月","7〜9月","10〜12月"];const reps=["1回目","2回目","3回目"];
- return periods[Math.floor(ci/3)]+" "+reps[ci%3];}
-function closeEdit(){document.getElementById("edit").style.display="none";curEdit=null;}
-function doSave(){if(!curEdit)return;const room=curRec.data.rooms[curEdit.ri];const cell=room.cells[curEdit.ci];
- const newResult=curEdit.clearMode?"":(curEdit.chosen||"");const newDate=curEdit.clearMode?"":document.getElementById("editdate").value.trim();
- if(curEdit.clearMode&&!cell.result&&!cell.date){closeEdit();return;}
- if(curEdit.clearMode&&!confirm("このマスの記録を消去しますか？"))return;
- const btn=document.getElementById("save");btn.disabled=true;btn.textContent="保存中…";
- google.script.run.withSuccessHandler(res=>{btn.disabled=false;btn.textContent="保存";
-   if(res&&res.ok){cell.result=res.saved.result;cell.date=res.saved.date;closeEdit();renderRec();}
-   else if(res&&res.conflict){alert("他の人が先に入力したようです。\n現在の値: "+(res.current.result||"（空）")+" / "+(res.current.date||"（空）")+"\n最新の状態に更新します。");
-    closeEdit();openRec(curRec.r);}
-   else{alert((res&&res.title?res.title:"保存に失敗しました")+"\n\n"+(res&&(res.body||res.error)?(res.body||res.error):"不明なエラー"));}
-  }).withFailureHandler(err=>{btn.disabled=false;btn.textContent="保存";alert("保存に失敗しました\n\n通信またはアプリ側の問題で保存できませんでした。時間をおいてもう一度お試しください。\n\n詳細: "+String(err));})
-  .saveVisitRecord({url:curRec.r.url,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date});}
-function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
-document.getElementById("q").value=curQ;
-setMode(initMode);
-</script></body></html>`;
+
+function buildHtml_(dataJson, colorsJson, resultsJson) {
+  return '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">' +
+    '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">' +
+    '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>' +
+    '<style>' +
+    ':root{--accent:#1a73e8;--bg:#f6f7f9;--card:#fff;--line:#e3e6ea;--text:#202124;--sub:#5f6368;--green:#34a853;}' +
+    '*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}' +
+    'html,body{margin:0;height:100%;}' +
+    'body{font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;}' +
+    'header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 12px;z-index:1001;}' +
+    '.topbar{display:flex;align-items:center;gap:8px;margin-bottom:8px;}' +
+    'h1{font-size:16px;margin:0;flex:1;}' +
+    '.ver{font-size:11px;color:var(--sub);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-right:4px;white-space:nowrap;}' +
+    '.toggle{display:flex;border:1px solid var(--accent);border-radius:8px;overflow:hidden;}' +
+    '.toggle button{font-size:13px;padding:6px 14px;border:0;background:var(--card);color:var(--accent);}' +
+    '.toggle button.on{background:var(--accent);color:#fff;}' +
+    '#q{width:100%;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);}' +
+    '#areas{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;-webkit-overflow-scrolling:touch;}' +
+    '#areas button{flex:0 0 auto;font-size:13px;padding:6px 12px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:var(--sub);}' +
+    '#areas button.on{background:var(--accent);border-color:var(--accent);color:#fff;}' +
+    '#count{font-size:12px;color:var(--sub);margin:6px 2px 0;}' +
+    '#list{flex:1;overflow-y:auto;padding:8px 12px 40px;}' +
+    '#mapwrap{flex:1;display:none;position:relative;}' +
+    '#map{position:absolute;inset:0;}' +
+    '#locate{position:absolute;right:12px;bottom:24px;z-index:1000;font-size:14px;font-weight:600;padding:10px 14px;border-radius:24px;border:1px solid var(--line);background:var(--card);color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.2);}' +
+    '#locate.on{background:var(--accent);border-color:var(--accent);color:#fff;}' +
+    '.ghead{font-size:13px;font-weight:700;color:var(--sub);margin:14px 2px 6px;}' +
+    '.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;}' +
+    '.info{flex:1;min-width:0;}' +
+    '.name{font-size:16px;font-weight:600;}' +
+    '.name a{color:var(--accent);text-decoration:none;cursor:pointer;}' +
+    '.meta{font-size:12.5px;color:var(--sub);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;}' +
+    '.badge{background:#e8f0fe;color:var(--accent);border-radius:6px;padding:1px 7px;font-weight:600;}' +
+    '.maplink{flex:0 0 auto;font-size:13px;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:6px 10px;}' +
+    '.pop .pname{font-size:15px;font-weight:700;margin-bottom:2px;}' +
+    '.pop .paddr{font-size:12px;color:var(--sub);}' +
+    '.pop .dirrow{display:flex;gap:5px;margin-top:7px;}' +
+    '.pop .dirlink{flex:1;text-align:center;font-size:12px;font-weight:600;background:var(--green);color:#fff;border-radius:8px;padding:5px 4px;text-decoration:none;white-space:nowrap;}' +
+    '.pop .recbtn{display:block;text-align:center;margin-top:5px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;border-radius:8px;padding:5px;cursor:pointer;}' +
+    '.pop .pbadge{display:inline-block;font-size:11px;background:#e8f0fe;color:var(--accent);border-radius:5px;padding:0 6px;font-weight:600;margin-bottom:3px;}' +
+    '.me-wrap{position:relative;width:36px;height:40px;}' +
+    '.me-pulse{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:rgba(52,168,83,.9);animation:mepulse 1.6s ease-out infinite;}' +
+    '@keyframes mepulse{0%{box-shadow:0 0 0 0 rgba(52,168,83,.6);}100%{box-shadow:0 0 0 22px rgba(52,168,83,0);}}' +
+    '.me-emoji{position:absolute;left:50%;bottom:0;transform:translateX(-50%);font-size:34px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));}' +
+    '.empty{text-align:center;color:var(--sub);padding:40px 0;}' +
+    '#rec{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:2000;display:none;}' +
+    '#recinner{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;}' +
+    '#rechead{background:var(--card);border-bottom:1px solid var(--line);padding:10px 12px;display:flex;align-items:center;gap:10px;}' +
+    '#rechead h2{font-size:16px;margin:0;flex:1;}' +
+    '#recclose{font-size:14px;font-weight:600;color:var(--accent);background:none;border:1px solid var(--accent);border-radius:8px;padding:6px 12px;}' +
+    '#recbody{flex:1;overflow:auto;padding:10px;}' +
+    '.rectable{border-collapse:collapse;font-size:12px;white-space:nowrap;}' +
+    '.rectable th,.rectable td{border:1px solid var(--line);padding:4px 6px;text-align:center;}' +
+    '.rectable thead th{background:#0b8043;color:#fff;position:sticky;top:0;z-index:2;}' +
+    '.rectable thead th.curp{background:var(--accent);}' +
+    '.rectable .rm{position:sticky;left:0;background:#0b8043;color:#fff;font-weight:700;z-index:1;}' +
+    '.rectable td.cell{cursor:pointer;min-width:62px;}' +
+    '.rectable td.cell:active{background:#fff3cd;}' +
+    '.rectable .res{font-weight:600;min-height:14px;}' +
+    '.rectable .date{color:var(--sub);font-size:11px;min-height:12px;}' +
+    '.rectable .filled{background:#e8f0fe;}' +
+    '.recnote{font-size:12px;color:var(--sub);margin:0 0 8px;}' +
+    '#edit{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;display:none;}' +
+    '#editbox{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:16px 16px 0 0;padding:14px 16px 22px;max-height:calc(100vh - 24px);overflow:auto;}' +
+    '.edithead{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px;}' +
+    '#edittitle{font-size:18px;font-weight:800;line-height:1.35;color:#d93025;margin:0;flex:1;}' +
+    '#editclose{flex:0 0 auto;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:24px;line-height:1;color:var(--sub);background:none;border:1px solid var(--line);border-radius:999px;padding:0;}' +
+    '.resrow{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}' +
+    '.resbtn{flex:1 0 28%;font-size:14px;padding:10px 6px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);}' +
+    '.resbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}' +
+    '.resbtn.clear{background:#fff;color:#d93025;border-color:#d93025;}' +
+    '.resbtn.clear.on{background:#d93025;border-color:#d93025;color:#fff;}' +
+    '.daterow{display:flex;align-items:center;gap:8px;margin-bottom:14px;}' +
+    '.daterow label{font-size:13px;color:var(--sub);}' +
+    '#editdate{flex:1;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;}' +
+    '.todaywrap{position:relative;flex:0 0 auto;display:flex;}' +
+    '#today{font-size:12px;padding:8px 10px;border:1px solid var(--accent);color:var(--accent);background:none;border-radius:8px;pointer-events:none;}' +
+    '#editdatepick{position:absolute;inset:0;opacity:0;z-index:1;cursor:pointer;}' +
+    '.btnrow{display:flex;gap:8px;}' +
+    '.btnrow button{flex:1;font-size:15px;font-weight:700;padding:12px;border-radius:10px;border:0;}' +
+    '#save{background:var(--accent);color:#fff;}' +
+    '</style></head><body>' +
+    '<header><div class="topbar"><h1>' + WEBAPP.TITLE + '</h1>' +
+    '<span class="ver">' + WEBAPP.VERSION + '</span>' +
+    '<div class="toggle"><button id="bList">一覧</button><button id="bMap" class="on">地図</button></div></div>' +
+    '<input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off">' +
+    '<div id="areas"></div><div id="count"></div></header>' +
+    '<main id="list"></main>' +
+    '<div id="mapwrap"><div id="map"></div><button id="locate">現在地</button></div>' +
+    '<div id="rec"><div id="recinner"><div id="rechead"><h2 id="rectitle">訪問記録</h2><button id="recclose">閉じる</button></div><div id="recbody"></div></div></div>' +
+    '<div id="edit"><div id="editbox">' +
+    '<div class="edithead"><p id="edittitle">記録</p><button id="editclose" aria-label="閉じる">×</button></div>' +
+    '<div class="resrow" id="resrow"></div>' +
+    '<div class="daterow"><label>日付</label><input id="editdate" type="text" placeholder="例 6/14 (土)"><div class="todaywrap"><button id="today" type="button">日付選択</button><input id="editdatepick" type="date" aria-label="日付を選択"></div></div>' +
+    '<div class="btnrow"><button id="save">保存</button></div>' +
+    '</div></div>' +
+    '<script>' +
+    'const DATA=' + dataJson + ';' +
+    'const COLORS=' + colorsJson + ';' +
+    'const RESULTS=' + resultsJson + ';' +
+    'const DEFC="' + WEBAPP.DEFAULT_COLOR + '";' +
+    'const STANDALONE=(navigator.standalone===true)||window.matchMedia("(display-mode: standalone)").matches;' +
+    'let curArea="";let curQ="";let mode="map";let map=null;let layer=null;' +
+    'let watchId=null;let meMarker=null;let meCircle=null;let lastPos=null;let firstFix=true;' +
+    'let savedView=null;' +
+    'let curRec=null;' +
+    'let curEdit=null;' +
+    'function pad2(n){return String(n).padStart(2,"0");}' +
+    'function localTodayLabel(){const d=new Date();const w=["日","月","火","水","木","金","土"][d.getDay()];return (d.getMonth()+1)+"/"+d.getDate()+" ("+w+")";}' +
+    'function localTodayIso(){const d=new Date();return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());}' +
+    'function labelFromIsoDate(s){const m=String(s||"").match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);if(!m)return "";const y=Number(m[1]),mo=Number(m[2]),da=Number(m[3]);const w=["日","月","火","水","木","金","土"][new Date(y,mo-1,da).getDay()];return mo+"/"+da+" ("+w+")";}' +
+    'function isoFromDisplayDate(s){const t=String(s||"").trim();if(!t)return "";if(/^\\d{4}-\\d{2}-\\d{2}$/.test(t))return t;const m=t.match(/^(\\d{1,2})\\/(\\d{1,2})/);if(!m)return "";const y=(new Date()).getFullYear(),mo=Number(m[1]),da=Number(m[2]),dt=new Date(y,mo-1,da);if(dt.getFullYear()!==y||dt.getMonth()+1!==mo||dt.getDate()!==da)return "";return y+"-"+pad2(mo)+"-"+pad2(da);}' +
+    'let todayStr=localTodayLabel();' +
+    'google.script.run.withSuccessHandler(s=>{if(s)todayStr=s;}).getTodayLabel();' +
+    'function saveState(){try{sessionStorage.setItem("st",JSON.stringify({a:curArea,q:curQ,m:mode,v:savedView}));}catch(e){}}' +
+    'let initMode="map";' +
+    'try{const st=JSON.parse(sessionStorage.getItem("st")||"{}");curArea=st.a||"";curQ=st.q||"";if(st.v)savedView=st.v;}catch(e){}' +
+    'const areas=[...new Set(DATA.map(r=>r.area))];' +
+    'const areaBox=document.getElementById("areas");' +
+    'function chip(label,val){const b=document.createElement("button");b.textContent=label;b.dataset.val=val;b.onclick=()=>{curArea=val;render();};areaBox.appendChild(b);}' +
+    'chip("すべて","");areas.forEach(a=>chip(a.replace(/エリア$/,""),a));' +
+    'document.getElementById("q").addEventListener("input",e=>{curQ=e.target.value.trim();render();});' +
+    'document.getElementById("bList").onclick=()=>setMode("list");' +
+    'document.getElementById("bMap").onclick=()=>setMode("map");' +
+    'document.getElementById("locate").onclick=locate;' +
+    'document.getElementById("recclose").onclick=closeRec;' +
+    'document.getElementById("editclose").onclick=closeEdit;' +
+    'document.getElementById("edit").onclick=e=>{if(e.target===e.currentTarget)closeEdit();};' +
+    'const editDateInput=document.getElementById("editdate");' +
+    'const editDatePicker=document.getElementById("editdatepick");' +
+    'function syncDatePickerFromText(){editDatePicker.value=isoFromDisplayDate(editDateInput.value)||localTodayIso();}' +
+    'editDateInput.addEventListener("input",syncDatePickerFromText);' +
+    'editDatePicker.addEventListener("input",e=>{editDateInput.value=labelFromIsoDate(e.target.value)||"";});' +
+    'editDatePicker.addEventListener("change",e=>{editDateInput.value=labelFromIsoDate(e.target.value)||"";});' +
+    'editDatePicker.addEventListener("click",syncDatePickerFromText);' +
+    'document.getElementById("save").onclick=doSave;' +
+    'function setMode(m){mode=m;' +
+    ' document.getElementById("bList").classList.toggle("on",m==="list");' +
+    ' document.getElementById("bMap").classList.toggle("on",m==="map");' +
+    ' document.getElementById("list").style.display=(m==="list")?"":"none";' +
+    ' document.getElementById("mapwrap").style.display=(m==="map")?"flex":"none";' +
+    ' if(m==="map"){initMap();setTimeout(()=>map.invalidateSize(),50);}render();}' +
+    'function locate(){if(!navigator.geolocation){alert("この端末では位置情報を利用できません。");return;}' +
+    ' if(watchId!==null){if(lastPos)map.setView(lastPos,Math.max(map.getZoom(),16));return;}' +
+    ' firstFix=true;document.getElementById("locate").classList.add("on");' +
+    ' watchId=navigator.geolocation.watchPosition(pos=>{lastPos=[pos.coords.latitude,pos.coords.longitude];const acc=pos.coords.accuracy||30;' +
+    '  if(!meMarker){meCircle=L.circle(lastPos,{radius:acc,color:"#34a853",weight:1,fillColor:"#34a853",fillOpacity:0.12}).addTo(map);' +
+    '   const meIcon=L.divIcon({className:"",html:"<div class=me-wrap><div class=me-pulse></div><div class=me-emoji>\\ud83d\\udccd</div></div>",iconSize:[36,40],iconAnchor:[18,38]});' +
+    '   meMarker=L.marker(lastPos,{icon:meIcon,zIndexOffset:1000}).addTo(map);' +
+    '  }else{meMarker.setLatLng(lastPos);meCircle.setLatLng(lastPos);meCircle.setRadius(acc);}' +
+    '  if(firstFix){firstFix=false;map.setView(lastPos,16);}' +
+    ' },err=>{stopLocate();if(err.code===1)alert("位置情報の利用が許可されていません。");else alert("現在地を取得できませんでした（"+err.message+"）");' +
+    ' },{enableHighAccuracy:true,maximumAge:5000,timeout:15000});}' +
+    'function stopLocate(){if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}document.getElementById("locate").classList.remove("on");}' +
+    'function hits_(){const q=curQ.toLowerCase();return DATA.filter(r=>(!curArea||r.area===curArea)&&(!q||r.name.toLowerCase().includes(q)||r.addr.toLowerCase().includes(q)));}' +
+    'function render(){[...areaBox.children].forEach(b=>b.classList.toggle("on",b.dataset.val===curArea));' +
+    ' const hits=hits_();document.getElementById("count").textContent=hits.length+" 件"+(mode==="map"?"（ピン "+hits.filter(r=>r.lat!==null).length+"）":"");' +
+    ' if(mode==="list")renderList(hits);else renderMap(hits);saveState();}' +
+    'function renderList(hits){const list=document.getElementById("list");list.innerHTML="";' +
+    ' if(hits.length===0){list.innerHTML="<div class=empty>該当なし</div>";return;}let lastArea=null;' +
+    ' hits.forEach(r=>{if(r.area!==lastArea){lastArea=r.area;const h=document.createElement("div");h.className="ghead";h.textContent=r.area;list.appendChild(h);}' +
+    '  const c=document.createElement("div");c.className="card";' +
+    '  const a=document.createElement("a");a.textContent=r.name;a.onclick=()=>openRec(r);' +
+    '  const info=document.createElement("div");info.className="info";' +
+    '  const nm=document.createElement("div");nm.className="name";nm.appendChild(a);' +
+    '  const meta=document.createElement("div");meta.className="meta";' +
+    '  meta.innerHTML=(r.type?"<span class=badge>"+esc(r.type)+"</span>":"")+"<span>"+esc(r.addr)+"</span>";' +
+    '  info.appendChild(nm);info.appendChild(meta);' +
+    '  const mapa=document.createElement("a");mapa.className="maplink";mapa.textContent="Map";' +
+    '  mapa.href="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(r.name+" "+r.addr);mapa.target="_blank";mapa.rel="noopener";' +
+    '  c.appendChild(info);c.appendChild(mapa);list.appendChild(c);});}' +
+    'function initMap(){if(map)return;map=L.map("map");' +
+    ' L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);' +
+    ' layer=L.layerGroup().addTo(map);' +
+    ' if(savedView&&savedView.c){map.setView(savedView.c,savedView.z);}else{map.setView([35.62,139.57],14);}' +
+    ' map.on("moveend",()=>{savedView={c:[map.getCenter().lat,map.getCenter().lng],z:map.getZoom()};saveState();});}' +
+    'function renderMap(hits){if(!map)return;layer.clearLayers();const pts=[];' +
+    ' hits.forEach(r=>{if(r.lat===null)return;pts.push([r.lat,r.lng]);const col=COLORS[r.type]||DEFC;' +
+    '  const mk=L.circleMarker([r.lat,r.lng],{radius:9,color:"#fff",weight:2,fillColor:col,fillOpacity:0.95});' +
+    '  const dirBase="https://www.google.com/maps/dir/?api=1&destination="+r.lat+","+r.lng+"&travelmode=";' +
+    '  const dirBtns="<div class=dirrow>"+' +
+    '   "<a class=dirlink href=\\""+dirBase+"walking\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\udeb6 徒歩</a>"+' +
+    '   "<a class=dirlink href=\\""+dirBase+"bicycling\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\udeb2 自転車</a>"+' +
+    '   "<a class=dirlink href=\\""+dirBase+"driving\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\ude97 車</a></div>";' +
+    '  const popId="rb_"+Math.random().toString(36).slice(2);' +
+    '  mk.bindPopup("<div class=pop>"+(r.type?"<span class=pbadge>"+esc(r.type)+"</span><br>":"")+' +
+    '   "<div class=pname>"+esc(r.name)+"</div><div class=paddr>"+esc(r.addr)+"</div>"+dirBtns+' +
+    '   "<div class=recbtn id="+popId+">訪問記録を開く</div></div>");' +
+    '  mk.on("popupopen",()=>{const el=document.getElementById(popId);if(el)el.onclick=()=>openRec(r);});' +
+    '  mk.addTo(layer);});' +
+    ' if(pts.length>0&&watchId===null&&!savedView)map.fitBounds(pts,{padding:[30,30],maxZoom:17});}' +
+    'function openRec(r){const m=document.getElementById("rec");m.style.display="block";' +
+    ' document.getElementById("rectitle").textContent=r.name;' +
+    ' const body=document.getElementById("recbody");body.innerHTML="<p class=recnote>読み込み中…</p>";' +
+    ' if(!r.url){body.innerHTML="<p class=recnote>この建物にはシートのURLが設定されていません。</p>";return;}' +
+    ' google.script.run.withSuccessHandler(res=>{curRec={r:r,data:res};renderRec();}).withFailureHandler(err=>{' +
+    '  body.innerHTML="<p class=recnote>読み込みに失敗しました: "+esc(String(err))+"</p>";}).getVisitRecords(r.url);}' +
+    'function closeRec(){closeEdit();document.getElementById("rec").style.display="none";curRec=null;}' +
+    'function currentPeriodIndex(){return Math.floor(new Date().getMonth()/3);}' +
+    'function renderRec(){const body=document.getElementById("recbody");const res=curRec.data;' +
+    ' if(!res||!res.ok){body.innerHTML="<p class=recnote>読み込みに失敗しました: "+esc(res&&res.error?res.error:"不明なエラー")+"</p>";return;}' +
+    ' if(!res.rooms||res.rooms.length===0){body.innerHTML="<p class=recnote>部屋データが見つかりませんでした。</p>";return;}' +
+    ' const periods=res.periods;const reps=["1回目","2回目","3回目"];const curPi=currentPeriodIndex();' +
+    ' let h="<p class=recnote>セルをタップして記録を入力できます。</p>";' +
+    ' h+="<table class=rectable><thead><tr><th class=rm>部屋</th>";' +
+    ' periods.forEach((p,pi)=>{reps.forEach(rep=>{h+="<th"+(pi===curPi?" class=\\"curp\\"":"")+">"+esc(p)+"<br>"+rep+"</th>";});});' +
+    ' h+="</tr></thead><tbody>";' +
+    ' res.rooms.forEach((room,ri)=>{h+="<tr><td class=rm>"+esc(room.room)+"</td>";' +
+    '  room.cells.forEach((cell,ci)=>{const f=(cell.result||cell.date)?" filled":"";' +
+    '   h+="<td class=\\"cell"+f+"\\" data-ri="+ri+" data-ci="+ci+"><div class=res>"+esc(cell.result)+"</div><div class=date>"+esc(cell.date)+"</div></td>";});' +
+    '  h+="</tr>";});' +
+    ' h+="</tbody></table>";body.innerHTML=h;' +
+    ' [...body.querySelectorAll("td.cell")].forEach(td=>{td.onclick=()=>openEdit(Number(td.dataset.ri),Number(td.dataset.ci));});}' +
+    'function openEdit(ri,ci){const room=curRec.data.rooms[ri];const cell=room.cells[ci];' +
+    ' curEdit={ri:ri,ci:ci,chosen:cell.result||"",clearMode:false};' +
+    ' document.getElementById("edittitle").textContent=room.room+"号室　"+periodLabel(ci);' +
+    ' const rr=document.getElementById("resrow");rr.innerHTML="";' +
+    ' function pickResult(btn,name,isClear){curEdit.chosen=isClear?"":name;curEdit.clearMode=!!isClear;[...rr.children].forEach(x=>x.classList.remove("on"));btn.classList.add("on");' +
+    '  const d=document.getElementById("editdate");if(isClear){d.value="";}else if(!d.value){d.value=todayStr||"";}syncDatePickerFromText();}' +
+    ' RESULTS.forEach(name=>{const b=document.createElement("button");b.className="resbtn"+(name===cell.result?" on":"");b.textContent=name;' +
+    '  b.onclick=()=>pickResult(b,name,false);rr.appendChild(b);});' +
+    ' if(cell.result||cell.date){const clearBtn=document.createElement("button");clearBtn.className="resbtn clear";clearBtn.textContent="クリア";' +
+    '  clearBtn.onclick=()=>pickResult(clearBtn,"",true);rr.appendChild(clearBtn);}' +
+    ' editDateInput.value=cell.date||"";syncDatePickerFromText();' +
+    ' document.getElementById("edit").style.display="block";}' +
+    'function periodLabel(ci){const periods=["1〜3月","4〜6月","7〜9月","10〜12月"];const reps=["1回目","2回目","3回目"];' +
+    ' return periods[Math.floor(ci/3)]+" "+reps[ci%3];}' +
+    'function closeEdit(){document.getElementById("edit").style.display="none";curEdit=null;}' +
+    'function doSave(){if(!curEdit)return;const room=curRec.data.rooms[curEdit.ri];const cell=room.cells[curEdit.ci];' +
+    ' const newResult=curEdit.clearMode?"":(curEdit.chosen||"");const newDate=curEdit.clearMode?"":document.getElementById("editdate").value.trim();' +
+    ' if(curEdit.clearMode&&!cell.result&&!cell.date){closeEdit();return;}' +
+    ' if(curEdit.clearMode&&!confirm("このマスの記録を消去しますか？"))return;' +
+    ' const btn=document.getElementById("save");btn.disabled=true;btn.textContent="保存中…";' +
+    ' google.script.run.withSuccessHandler(res=>{btn.disabled=false;btn.textContent="保存";' +
+    '   if(res&&res.ok){cell.result=res.saved.result;cell.date=res.saved.date;closeEdit();renderRec();}' +
+    '   else if(res&&res.conflict){alert("他の人が先に入力したようです。\\n現在の値: "+(res.current.result||"（空）")+" / "+(res.current.date||"（空）")+"\\n最新の状態に更新します。");' +
+    '    closeEdit();openRec(curRec.r);}' +
+    '   else{alert("保存に失敗しました: "+(res&&res.error?res.error:"不明なエラー"));}' +
+    '  }).withFailureHandler(err=>{btn.disabled=false;btn.textContent="保存";alert("保存に失敗しました: "+String(err));})' +
+    '  .saveVisitRecord({url:curRec.r.url,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date});}' +
+    'function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
+    'document.getElementById("q").value=curQ;' +
+    'setMode(initMode);' +
+    '</script></body></html>';
 }
