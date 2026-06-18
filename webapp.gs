@@ -1,5 +1,5 @@
 /**
- * 区域マンション一覧 ウェブアプリ（webapp.gs v1.1.5 訪問記録 入力対応・安全チェック追加）
+ * 区域マンション一覧 ウェブアプリ（webapp.gs v1.1.10 訪問記録 入力対応・安全チェック追加）
  * - 「保存」でセル（結果）とその真下（日付）に書き込みます。
  * - B列（最終訪問日）は保護されている可能性があるため更新しません。
  * v4.1からの追加点:
@@ -22,9 +22,10 @@ const WEBAPP = {
   COL_URL: 10,
 
   TITLE: '区域マンション一覧',
-  VERSION: 'v1.1.5',
+  VERSION: 'v1.1.9',
   OPEN_IN_APP: false,
   CACHE_SHEET: '座標キャッシュ',
+  MEMBER_SHEET: 'メンバー',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
 
   TYPE_COLORS: {
@@ -170,6 +171,32 @@ function normAddr_(s) {
     .replace(/[０-９]/g, d => String.fromCharCode(d.charCodeAt(0) - 0xFEE0))
     .replace(/[−ー―‐－]/g, '-')
     .replace(/\s+/g, '');
+}
+
+function getAllowedEmails_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(WEBAPP.MEMBER_SHEET);
+  if (!sh) return null;
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 1) return {};
+
+  const allowed = {};
+  sh.getRange(1, 1, lastRow, 1).getDisplayValues().forEach(row => {
+    const email = String(row[0] || '').trim().toLowerCase();
+    if (email) allowed[email] = true;
+  });
+  return allowed;
+}
+
+function isAllowedUser_() {
+  const allowed = getAllowedEmails_();
+  if (allowed === null) return true;
+
+  const email = Session.getActiveUser().getEmail().toLowerCase();
+  if (!email) return false;
+
+  return allowed[email] === true;
 }
 
 function cleanErrorMessage_(e) {
@@ -482,12 +509,7 @@ function openSheetByUrl_(url, purpose) {
   const ids = parseSheetUrl_(url);
   if (!ids) return null;
 
-  let ss;
-  try {
-    ss = SpreadsheetApp.openById(ids.fileId);
-  } catch (e) {
-    throw new Error(friendlySheetAccessError_(e, purpose));
-  }
+  const ss = SpreadsheetApp.openById(ids.fileId);
 
   if (ids.gid !== null) {
     const all = ss.getSheets();
@@ -521,6 +543,35 @@ function parseSheetUrl_(url) {
  * ============================================================ */
 
 function doGet() {
+  try {
+    return doGet_();
+  } catch (e) {
+    const msg = cleanErrorMessage_(e);
+    const isPermission = isPermissionErrorMessage_(msg);
+    const body = isPermission
+      ? 'このページを表示する権限がありません。スプレッドシートの閲覧権限があるアカウントでアクセスしてください。'
+      : ('エラーが発生しました: ' + msg);
+    return HtmlService.createHtmlOutput(
+      '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<style>body{font-family:-apple-system,"Hiragino Sans",sans-serif;padding:32px 16px;color:#202124;}' +
+      'p{font-size:15px;line-height:1.7;}</style></head>' +
+      '<body><p>' + body + '</p></body></html>'
+    ).setTitle(WEBAPP.TITLE);
+  }
+}
+
+function doGet_() {
+  if (!isAllowedUser_()) {
+    return HtmlService.createHtmlOutput(
+      '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<style>body{font-family:-apple-system,"Hiragino Sans",sans-serif;padding:32px 16px;color:#202124;}' +
+      'p{font-size:15px;line-height:1.7;}</style></head>' +
+      '<body><p>このアプリへのアクセス権がありません。管理者にお問い合わせください。</p></body></html>'
+    ).setTitle(WEBAPP.TITLE);
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName(WEBAPP.SHEET_NAME);
 
@@ -780,7 +831,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     ' const body=document.getElementById("recbody");body.innerHTML="<p class=recnote>読み込み中…</p>";' +
     ' if(!r.url){body.innerHTML="<p class=recnote>この建物にはシートのURLが設定されていません。</p>";return;}' +
     ' google.script.run.withSuccessHandler(res=>{curRec={r:r,data:res};renderRec();}).withFailureHandler(err=>{' +
-    '  body.innerHTML="<p class=recnote>読み込みに失敗しました: "+esc(String(err))+"</p>";}).getVisitRecords(r.url);}' +
+    '  body.innerHTML="<p class=recnote>"+esc(friendlyErr(err,false))+"</p>";}).getVisitRecords(r.url);}' +
     'function closeRec(){closeEdit();document.getElementById("rec").style.display="none";curRec=null;}' +
     'function currentPeriodIndex(){return Math.floor(new Date().getMonth()/3);}' +
     'function renderRec(){const body=document.getElementById("recbody");const res=curRec.data;' +
@@ -822,9 +873,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '   else if(res&&res.conflict){alert("他の人が先に入力したようです。\\n現在の値: "+(res.current.result||"（空）")+" / "+(res.current.date||"（空）")+"\\n最新の状態に更新します。");' +
     '    closeEdit();openRec(curRec.r);}' +
     '   else{alert("保存に失敗しました: "+(res&&res.error?res.error:"不明なエラー"));}' +
-    '  }).withFailureHandler(err=>{btn.disabled=false;btn.textContent="保存";alert("保存に失敗しました: "+String(err));})' +
+    '  }).withFailureHandler(err=>{btn.disabled=false;btn.textContent="保存";alert(friendlyErr(err,true));})' +
     '  .saveVisitRecord({url:curRec.r.url,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date});}' +
     'function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
+    'function friendlyErr(err,forWrite){const m=String(err);const p=m.indexOf("権限")!==-1||m.toLowerCase().indexOf("permission")!==-1||m.toLowerCase().indexOf("access")!==-1;return p?(forWrite?"権限がないため保存できませんでした。対象のスプレッドシートで編集権限があるか確認し、権限付与後にもう一度お試しください。":"権限がないため記録シートを開けませんでした。対象のスプレッドシートで閲覧権限があるか確認し、権限付与後にもう一度お試しください。"):m;}' +
     'document.getElementById("q").value=curQ;' +
     'setMode(initMode);' +
     '</script></body></html>';
