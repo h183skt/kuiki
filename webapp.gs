@@ -1,5 +1,5 @@
 /**
- * 区域マンション一覧 ウェブアプリ（webapp.gs v1.1.10 訪問記録 入力対応・安全チェック追加）
+ * 区域マンション一覧 ウェブアプリ（webapp.gs v1.1.11 訪問記録 入力対応・安全チェック追加）
  * - 「保存」でセル（結果）とその真下（日付）に書き込みます。
  * - B列（最終訪問日）は保護されている可能性があるため更新しません。
  * v4.1からの追加点:
@@ -22,10 +22,9 @@ const WEBAPP = {
   COL_URL: 10,
 
   TITLE: '区域マンション一覧',
-  VERSION: 'v1.1.9',
+  VERSION: 'v1.1.11',
   OPEN_IN_APP: false,
   CACHE_SHEET: '座標キャッシュ',
-  MEMBER_SHEET: 'メンバー',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
 
   TYPE_COLORS: {
@@ -173,31 +172,6 @@ function normAddr_(s) {
     .replace(/\s+/g, '');
 }
 
-function getAllowedEmails_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getSheetByName(WEBAPP.MEMBER_SHEET);
-  if (!sh) return null;
-
-  const lastRow = sh.getLastRow();
-  if (lastRow < 1) return {};
-
-  const allowed = {};
-  sh.getRange(1, 1, lastRow, 1).getDisplayValues().forEach(row => {
-    const email = String(row[0] || '').trim().toLowerCase();
-    if (email) allowed[email] = true;
-  });
-  return allowed;
-}
-
-function isAllowedUser_() {
-  const allowed = getAllowedEmails_();
-  if (allowed === null) return true;
-
-  const email = Session.getActiveUser().getEmail().toLowerCase();
-  if (!email) return false;
-
-  return allowed[email] === true;
-}
 
 function cleanErrorMessage_(e) {
   return String((e && e.message) ? e.message : e || '')
@@ -562,16 +536,6 @@ function doGet() {
 }
 
 function doGet_() {
-  if (!isAllowedUser_()) {
-    return HtmlService.createHtmlOutput(
-      '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">' +
-      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-      '<style>body{font-family:-apple-system,"Hiragino Sans",sans-serif;padding:32px 16px;color:#202124;}' +
-      'p{font-size:15px;line-height:1.7;}</style></head>' +
-      '<body><p>このアプリへのアクセス権がありません。管理者にお問い合わせください。</p></body></html>'
-    ).setTitle(WEBAPP.TITLE);
-  }
-
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName(WEBAPP.SHEET_NAME);
 
