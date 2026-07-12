@@ -1,5 +1,5 @@
 /**
- * 区域マンション一覧 ウェブアプリ（webapp.gs v1.2.1 訪問記録 入力対応・安全チェック追加）
+ * 区域マンション一覧 ウェブアプリ（webapp.gs v1.3.0 検索窓「管理者」入力でマスター更新ボタン表示）
  * - 「保存」でセル（結果）とその真下（日付）に書き込みます。
  * - B列（最終訪問日）は保護されている可能性があるため更新しません。
  * v4.1からの追加点:
@@ -22,7 +22,7 @@ const WEBAPP = {
   COL_URL: 10,
 
   TITLE: '区域マンション一覧',
-  VERSION: 'v1.2.1',
+  VERSION: 'v1.3.0',
   OPEN_IN_APP: false,
   CACHE_SHEET: '座標キャッシュ',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
@@ -201,6 +201,25 @@ function friendlySheetAccessError_(e, purpose) {
   }
 
   return message || '不明なエラーが発生しました。';
+}
+
+function runMasterUpdate() {
+  const lock = LockService.getDocumentLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { ok: false, error: '他の処理が実行中です。少し待ってから再度お試しください。' };
+  }
+
+  try {
+    mergeAreaSheets();
+    geocodeAddresses();
+    return { ok: true, message: 'マスターデータの更新が正常に完了しました。' };
+  } catch (e) {
+    return { ok: false, error: cleanErrorMessage_(e) };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* ============================================================
@@ -685,6 +704,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '</style></head><body>' +
     '<header><div class="topbar"><h1>' + WEBAPP.TITLE + '</h1>' +
     '<span class="ver">' + WEBAPP.VERSION + '</span>' +
+    '<button id="btnUpdate" style="display:none;font-size:11px;color:var(--accent);background:var(--card);border:1px solid var(--accent);border-radius:999px;padding:2px 8px;margin-right:4px;white-space:nowrap;cursor:pointer;">マスター更新</button>' +
     '<div class="toggle"><button id="bList">一覧</button><button id="bMap" class="on">地図</button></div></div>' +
     '<input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off">' +
     '<div id="areas"></div><div id="count"></div></header>' +
@@ -722,7 +742,12 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     'const areaBox=document.getElementById("areas");' +
     'function chip(label,val){const b=document.createElement("button");b.textContent=label;b.dataset.val=val;b.onclick=()=>{curArea=val;render();};areaBox.appendChild(b);}' +
     'chip("すべて","");areas.forEach(a=>chip(a.replace(/エリア$/,""),a));' +
-    'document.getElementById("q").addEventListener("input",e=>{curQ=e.target.value.trim();render();});' +
+    'document.getElementById("q").addEventListener("input",e=>{' +
+    '  curQ=e.target.value.trim();' +
+    '  const btn=document.getElementById("btnUpdate");' +
+    '  if(btn){btn.style.display=(curQ==="管理者")?"":"none";}' +
+    '  render();' +
+    '});' +
     'document.getElementById("bList").onclick=()=>setMode("list");' +
     'document.getElementById("bMap").onclick=()=>setMode("map");' +
     'document.getElementById("locate").onclick=locate;' +
@@ -858,6 +883,23 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     'function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
     'function friendlyErr(err,forWrite){const m=String(err);const p=m.indexOf("権限")!==-1||m.toLowerCase().indexOf("permission")!==-1||m.toLowerCase().indexOf("access")!==-1;return p?(forWrite?"権限がないため保存できませんでした。対象のスプレッドシートで編集権限があるか確認し、権限付与後にもう一度お試しください。":"権限がないため記録シートを開けませんでした。対象のスプレッドシートで閲覧権限があるか確認し、権限付与後にもう一度お試しください。"):m;}' +
     'document.getElementById("q").value=curQ;' +
+    'const btnUpdate=document.getElementById("btnUpdate");' +
+    'if(btnUpdate){' +
+    '  if(curQ==="管理者")btnUpdate.style.display="";' +
+    '  btnUpdate.onclick=()=>{' +
+    '    if(!confirm("各スプレッドシートからマンションデータを再読み込みし、マスターファイルを更新しますか？\\n（完了まで少し時間がかかります）"))return;' +
+    '    const origText=btnUpdate.textContent;' +
+    '    btnUpdate.disabled=true;btnUpdate.textContent="更新中…";' +
+    '    google.script.run.withSuccessHandler(res=>{' +
+    '      btnUpdate.disabled=false;btnUpdate.textContent=origText;' +
+    '      if(res&&res.ok){alert(res.message);window.location.reload();}' +
+    '      else{alert("更新に失敗しました: "+(res&&res.error?res.error:"不明なエラー"));}' +
+    '    }).withFailureHandler(err=>{' +
+    '      btnUpdate.disabled=false;btnUpdate.textContent=origText;' +
+    '      alert("通信エラーが発生しました: "+err);' +
+    '    }).runMasterUpdate();' +
+    '  };' +
+    '}' +
     'setMode(initMode);' +
     '</script></body></html>';
 }
