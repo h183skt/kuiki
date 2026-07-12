@@ -1,5 +1,5 @@
 /**
- * 区域マンション一覧 ウェブアプリ（webapp.gs v1.3.6 リンク要素によるリロードバグの完全修正）
+ * 区域マンション一覧 ウェブアプリ（webapp.gs v1.5.2 デプロイ設定の自動同期と不具合修正）
  * - 「保存」でセル（結果）とその真下（日付）に書き込みます。
  * - B列（最終訪問日）は保護されている可能性があるため更新しません。
  * v4.1からの追加点:
@@ -22,7 +22,7 @@ const WEBAPP = {
   COL_URL: 10,
 
   TITLE: '区域マンション一覧',
-  VERSION: 'v1.3.6',
+  VERSION: 'v1.5.2',
   OPEN_IN_APP: false,
   CACHE_SHEET: '座標キャッシュ',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
@@ -610,7 +610,8 @@ function doGet_() {
   const resultsJson = JSON.stringify(WEBAPP.REC_RESULTS);
   const webappUrl = ScriptApp.getService().getUrl();
 
-  return HtmlService.createHtmlOutput(buildHtml_(dataJson, colorsJson, resultsJson, webappUrl))
+  const userEmail = Session.getActiveUser().getEmail() || '';
+  return HtmlService.createHtmlOutput(buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail))
     .setTitle(WEBAPP.TITLE)
     .setFaviconUrl(WEBAPP.ICON_URL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -623,7 +624,7 @@ function urlFromFormula_(formula) {
   return m ? m[1] : '';
 }
 
-function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl) {
+function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
   return '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">' +
     '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">' +
     '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>' +
@@ -660,7 +661,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl) {
     '.maplink{flex:0 0 auto;font-size:13px;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:6px 10px;}' +
     '.pop .pname{font-size:15px;font-weight:700;margin-bottom:2px;}' +
     '.pop .paddr{font-size:12px;color:var(--sub);}' +
-    '.loading-logo{width:48px;height:48px;margin-bottom:12px;}' +
+    '.loading-logo{width:144px;height:144px;margin-bottom:12px;}' +
     '.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;color:var(--sub);}' +
     '.loading-wrap p{font-size:15px;font-weight:600;margin:12px 0 0;}' +
     '.spinner{width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}' +
@@ -691,7 +692,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl) {
     '.rectable .date{color:var(--sub);font-size:11px;min-height:12px;}' +
     '.rectable .filled{background:#e8f0fe;}' +
     '.rectable td.active-cell{background:#fff9c4;}' +
-    '.rectable td.past-cell{background:#f1f3f4;color:#70757a;}' +
+    '.rectable td.past-cell{background:#dadce0;color:#70757a;}' +
     '.recnote{font-size:12px;color:var(--sub);margin:0 0 8px;}' +
     '#edit{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;display:none;}' +
     '#editbox{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:16px 16px 0 0;padding:14px 16px 22px;max-height:calc(100vh - 24px);overflow:auto;}' +
@@ -718,7 +719,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl) {
     '<button id="btnUpdate" style="display:none;font-size:11px;color:var(--accent);background:var(--card);border:1px solid var(--accent);border-radius:999px;padding:2px 8px;margin-right:4px;white-space:nowrap;cursor:pointer;">マスター更新</button>' +
     '<div class="toggle"><button id="bList">一覧</button><button id="bMap" class="on">地図</button></div></div>' +
     '<input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off">' +
-    '<div id="areas"></div><div id="count"></div></header>' +
+    '<div id="areas"></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;"><div id="count" style="margin:0;"></div><span id="user-email" style="font-size:11px;color:var(--sub);padding-right:2px;"></span></div></header>' +
     '<main id="list"></main>' +
     '<div id="mapwrap"><div id="map"></div><button id="locate">現在地</button></div>' +
     '<div id="rec"><div id="recinner"><div id="rechead"><h2 id="rectitle">訪問記録</h2><button id="recclose">閉じる</button></div><div id="recbody"></div></div></div>' +
@@ -735,6 +736,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl) {
     'const APP_ICON="' + WEBAPP.ICON_URL + '";' +
     'const WEBAPP_URL="' + webappUrl + '";' +
     'const DEFC="' + WEBAPP.DEFAULT_COLOR + '";' +
+    'const USER_EMAIL="' + userEmail + '";' +
+    'const emailEl=document.getElementById("user-email");if(emailEl&&USER_EMAIL){emailEl.textContent="ログイン: "+USER_EMAIL;}' +
     'const STANDALONE=(navigator.standalone===true)||window.matchMedia("(display-mode: standalone)").matches;' +
     'let curArea="";let curQ="";let mode="map";let map=null;let layer=null;' +
     'let watchId=null;let meMarker=null;let meCircle=null;let lastPos=null;let firstFix=true;' +
@@ -785,7 +788,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl) {
     ' if(watchId!==null){if(lastPos)map.setView(lastPos,Math.max(map.getZoom(),16));return;}' +
     ' firstFix=true;document.getElementById("locate").classList.add("on");' +
     ' watchId=navigator.geolocation.watchPosition(pos=>{lastPos=[pos.coords.latitude,pos.coords.longitude];const acc=pos.coords.accuracy||30;' +
-    '  if(!meMarker){meCircle=L.circle(lastPos,{radius:acc,color:"#34a853",weight:1,fillColor:"#34a853",fillOpacity:0.12}).addTo(map);' +
+    '  if(!meMarker){meCircle=L.circle(lastPos,{radius:acc,color:"#34a853",weight:1,fillColor:"#34a853",fillOpacity:0.12,interactive:false}).addTo(map);' +
     '   const meIcon=L.divIcon({className:"",html:"<div class=me-wrap><div class=me-pulse></div><div class=me-emoji>\\ud83d\\udccd</div></div>",iconSize:[36,40],iconAnchor:[18,38]});' +
     '   meMarker=L.marker(lastPos,{icon:meIcon,zIndexOffset:1000}).addTo(map);' +
     '  }else{meMarker.setLatLng(lastPos);meCircle.setLatLng(lastPos);meCircle.setRadius(acc);}' +
@@ -816,18 +819,33 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl) {
     ' if(savedView&&savedView.c){map.setView(savedView.c,savedView.z);}else{map.setView([35.62,139.57],14);}' +
     ' map.on("moveend",()=>{savedView={c:[map.getCenter().lat,map.getCenter().lng],z:map.getZoom()};saveState();});}' +
     'function renderMap(hits){if(!map)return;layer.clearLayers();const pts=[];' +
-    ' hits.forEach(r=>{if(r.lat===null)return;pts.push([r.lat,r.lng]);const col=COLORS[r.type]||DEFC;' +
-    '  const mk=L.circleMarker([r.lat,r.lng],{radius:9,color:"#fff",weight:2,fillColor:col,fillOpacity:0.95});' +
-    '  const dirBase="https://www.google.com/maps/dir/?api=1&destination="+r.lat+","+r.lng+"&travelmode=";' +
+    ' const groups={};' +
+    ' hits.forEach(r=>{if(r.lat===null||r.lng===null)return;const key=r.lat+","+r.lng;if(!groups[key])groups[key]=[];groups[key].push(r);});' +
+    ' Object.keys(groups).forEach(key=>{const items=groups[key];const first=items[0];pts.push([first.lat,first.lng]);' +
+    '  const isMulti=items.length>1;let col=COLORS[first.type]||DEFC;' +
+    '  if(isMulti){const types=new Set(items.map(x=>x.type));if(types.size>1){col=COLORS["混在"]||"#f9ab00";}}' +
+    '  const mk=L.circleMarker([first.lat,first.lng],{radius:9,color:"#fff",weight:2,fillColor:col,fillOpacity:0.95});' +
+    '  const dirBase="https://www.google.com/maps/dir/?api=1&destination="+first.lat+","+first.lng+"&travelmode=";' +
     '  const dirBtns="<div class=dirrow>"+' +
     '   "<a class=dirlink href=\\""+dirBase+"walking\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\udeb6 徒歩</a>"+' +
     '   "<a class=dirlink href=\\""+dirBase+"bicycling\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\udeb2 自転車</a>"+' +
     '   "<a class=dirlink href=\\""+dirBase+"driving\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\ude97 車</a></div>";' +
-    '  const popId="rb_"+Math.random().toString(36).slice(2);' +
-    '  mk.bindPopup("<div class=pop>"+(r.type?"<span class=pbadge>"+esc(r.type)+"</span><br>":"")+' +
-    '   "<div class=pname>"+esc(r.name)+"</div><div class=paddr>"+esc(r.addr)+"</div>"+dirBtns+' +
-    '   "<div class=recbtn id="+popId+">訪問記録を開く</div></div>");' +
-    '  mk.on("popupopen",()=>{const el=document.getElementById(popId);if(el)el.onclick=()=>openRec(r);});' +
+    '  let popHtml="<div class=pop>";const handlers=[];' +
+    '  if(!isMulti){const r=first;const popId="rb_"+Math.random().toString(36).slice(2);handlers.push({id:popId,r:r});' +
+    '   popHtml+=(r.type?"<span class=pbadge>"+esc(r.type)+"</span><br>":"")+' +
+    '    "<div class=pname>"+esc(r.name)+"</div><div class=paddr>"+esc(r.addr)+"</div>"+dirBtns+' +
+    '    "<div class=recbtn id="+popId+">訪問記録を開く</div>";' +
+    '  }else{' +
+    '   popHtml+="<div class=paddr style=\\"font-weight:bold;margin-bottom:5px;\\">"+esc(first.addr)+"</div>"+dirBtns;' +
+    '   items.forEach(r=>{const popId="rb_"+Math.random().toString(36).slice(2);handlers.push({id:popId,r:r});' +
+    '    popHtml+="<div style=\\"margin-top:8px;border-top:1px solid var(--line);padding-top:8px;\\">"+' +
+    '     (r.type?"<span class=pbadge style=\\"background:"+(COLORS[r.type]||DEFC)+";color:#fff;\\">"+esc(r.type)+"</span> ":"")+' +
+    '     "<span class=pname style=\\"font-size:14px;\\">"+esc(r.name)+"</span>"+' +
+    '     "<div class=recbtn id="+popId+" style=\\"margin-top:4px;\\">訪問記録を開く</div></div>";});' +
+    '  }' +
+    '  popHtml+="</div>";' +
+    '  mk.bindPopup(popHtml);' +
+    '  mk.on("popupopen",()=>{handlers.forEach(h=>{const el=document.getElementById(h.id);if(el)el.onclick=()=>openRec(h.r);});});' +
     '  mk.addTo(layer);});' +
     ' if(pts.length>0&&watchId===null&&!savedView)map.fitBounds(pts,{padding:[30,30],maxZoom:17});}' +
     'function openRec(r){curSheetIndex=0;const m=document.getElementById("rec");m.style.display="block";' +
@@ -921,7 +939,18 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl) {
     'const btnVersion=document.getElementById("btnVersion");' +
     'if(btnVersion){' +
     '  btnVersion.onclick=()=>{' +
-    '    if(confirm("アプリを再起動（最新状態へ更新）しますか？")){' +
+    '    const notes=' +
+    '      "【最近の更新内容】\\n" +' +
+    '      "・v1.5.2: claspデプロイ設定の自動同期（実行権限をアクセスユーザーに固定）\\n" +' +
+    '      "・v1.5.1: ログインユーザーのメールアドレスを表示する機能を追加\\n" +' +
+    '      "・v1.5.0: セキュリティ強化（アクセスしたユーザー自身の権限でスプレッドシートを開くよう変更）\\n" +' +
+    '      "・v1.4.4: バージョンクリック時に最近の更新内容を表示する機能を追加\\n" +' +
+    '      "・v1.4.3: 期間終了後の過去セルの背景色を濃いグレーに調整\\n" +' +
+    '      "・v1.4.2: 訪問記録の読込時のロゴアイコンサイズを3倍に拡大\\n" +' +
+    '      "・v1.4.1: 同一住所 of 複数建物があるピンの枠線・サイズを統一\\n" +' +
+    '      "・v1.4.0: 同一座標のピンのグループ化と選択ポップアップ実装\\n\\n" +' +
+    '      "アプリを再起動（最新状態へ更新）しますか？";' +
+    '    if(confirm(notes)){' +
     '      safeReload();' +
     '    }' +
     '  };' +
