@@ -822,6 +822,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '   h+="<td class=\\"cell"+f+active+"\\" data-ri="+ri+" data-ci="+ci+"><div class=res>"+esc(cell.result)+"</div><div class=date>"+esc(cell.date)+"</div></td>";});' +
     '  h+="</tr>";});' +
     ' h+="</tbody></table>";body.innerHTML=h;' +
+    ' const curp=body.querySelector("th.curp");' +
+    ' if(curp){const rm=body.querySelector("th.rm");const off=rm?rm.offsetWidth:50;' +
+    '  body.scrollLeft=curp.offsetLeft-off;}' +
     ' [...body.querySelectorAll("td.cell")].forEach(td=>{td.onclick=()=>openEdit(Number(td.dataset.ri),Number(td.dataset.ci));});}' +
     'function openEdit(ri,ci){const room=curRec.data.rooms[ri];const cell=room.cells[ci];' +
     ' curEdit={ri:ri,ci:ci,chosen:cell.result||"",clearMode:false};' +
