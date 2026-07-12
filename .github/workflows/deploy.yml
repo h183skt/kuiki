@@ -29,3 +29,6 @@ jobs:
 
       - name: Push to GAS
         run: clasp push --force
+
+      - name: Deploy Web App
+        run: clasp deploy --deployId AKfycbxQKsGq8yR5BYEP9g7F3xgpXJHd--UwZOCQ6gPtYKUBuDoq-DLB27_-b_EAA9TWAZm_hA
