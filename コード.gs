@@ -230,3 +230,5 @@ function setupDailyTrigger() {
   });
   ScriptApp.newTrigger('mergeAreaSheets').timeBased().everyDays(1).atHour(6).create();
 }
+
+// 自動デプロイテスト用コメント
