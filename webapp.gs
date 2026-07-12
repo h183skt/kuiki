@@ -1,5 +1,5 @@
 /**
- * 区域マンション一覧 ウェブアプリ（webapp.gs v1.3.1 「テスト」エリア除外ロジック追加）
+ * 区域マンション一覧 ウェブアプリ（webapp.gs v1.3.2 更新完了時のリロードバグ修正）
  * - 「保存」でセル（結果）とその真下（日付）に書き込みます。
  * - B列（最終訪問日）は保護されている可能性があるため更新しません。
  * v4.1からの追加点:
@@ -22,7 +22,7 @@ const WEBAPP = {
   COL_URL: 10,
 
   TITLE: '区域マンション一覧',
-  VERSION: 'v1.3.1',
+  VERSION: 'v1.3.2',
   OPEN_IN_APP: false,
   CACHE_SHEET: '座標キャッシュ',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
@@ -220,6 +220,10 @@ function runMasterUpdate() {
   } finally {
     lock.releaseLock();
   }
+}
+
+function getWebappUrl() {
+  return ScriptApp.getService().getUrl();
 }
 
 /* ============================================================
@@ -891,9 +895,15 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '    const origText=btnUpdate.textContent;' +
     '    btnUpdate.disabled=true;btnUpdate.textContent="更新中…";' +
     '    google.script.run.withSuccessHandler(res=>{' +
-    '      btnUpdate.disabled=false;btnUpdate.textContent=origText;' +
-    '      if(res&&res.ok){alert(res.message);window.location.reload();}' +
-    '      else{alert("更新に失敗しました: "+(res&&res.error?res.error:"不明なエラー"));}' +
+    '      if(res&&res.ok){' +
+    '        alert(res.message);' +
+    '        google.script.run.withSuccessHandler(url=>{' +
+    '          window.top.location.href=url;' +
+    '        }).getWebappUrl();' +
+    '      } else {' +
+    '        btnUpdate.disabled=false;btnUpdate.textContent=origText;' +
+    '        alert("更新に失敗しました: "+(res&&res.error?res.error:"不明なエラー"));' +
+    '      }' +
     '    }).withFailureHandler(err=>{' +
     '      btnUpdate.disabled=false;btnUpdate.textContent=origText;' +
     '      alert("通信エラーが発生しました: "+err);' +
