@@ -22,8 +22,10 @@ jobs:
         run: npm install -g @google/clasp
 
       - name: Create clasprc.json
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
         run: |
-          echo "${{ secrets.CLASPRC_JSON }}" > ~/.clasprc.json
+          echo "$CLASPRC_JSON" > ~/.clasprc.json
 
       - name: Push to GAS
         run: clasp push --force
