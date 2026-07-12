@@ -1,5 +1,5 @@
 /**
- * 区域マンション一覧 ウェブアプリ（webapp.gs v1.3.5 アプリ再起動の確実化修正）
+ * 区域マンション一覧 ウェブアプリ（webapp.gs v1.3.6 リンク要素によるリロードバグの完全修正）
  * - 「保存」でセル（結果）とその真下（日付）に書き込みます。
  * - B列（最終訪問日）は保護されている可能性があるため更新しません。
  * v4.1からの追加点:
@@ -22,7 +22,7 @@ const WEBAPP = {
   COL_URL: 10,
 
   TITLE: '区域マンション一覧',
-  VERSION: 'v1.3.5',
+  VERSION: 'v1.3.6',
   OPEN_IN_APP: false,
   CACHE_SHEET: '座標キャッシュ',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
@@ -608,8 +608,9 @@ function doGet_() {
   const dataJson = JSON.stringify(rows).replace(/</g, '\\u003c');
   const colorsJson = JSON.stringify(WEBAPP.TYPE_COLORS);
   const resultsJson = JSON.stringify(WEBAPP.REC_RESULTS);
+  const webappUrl = ScriptApp.getService().getUrl();
 
-  return HtmlService.createHtmlOutput(buildHtml_(dataJson, colorsJson, resultsJson))
+  return HtmlService.createHtmlOutput(buildHtml_(dataJson, colorsJson, resultsJson, webappUrl))
     .setTitle(WEBAPP.TITLE)
     .setFaviconUrl(WEBAPP.ICON_URL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -622,7 +623,7 @@ function urlFromFormula_(formula) {
   return m ? m[1] : '';
 }
 
-function buildHtml_(dataJson, colorsJson, resultsJson) {
+function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl) {
   return '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">' +
     '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">' +
     '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>' +
@@ -732,6 +733,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     'const COLORS=' + colorsJson + ';' +
     'const RESULTS=' + resultsJson + ';' +
     'const APP_ICON="' + WEBAPP.ICON_URL + '";' +
+    'const WEBAPP_URL="' + webappUrl + '";' +
     'const DEFC="' + WEBAPP.DEFAULT_COLOR + '";' +
     'const STANDALONE=(navigator.standalone===true)||window.matchMedia("(display-mode: standalone)").matches;' +
     'let curArea="";let curQ="";let mode="map";let map=null;let layer=null;' +
@@ -891,6 +893,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '   else{alert("保存に失敗しました: "+(res&&res.error?res.error:"不明なエラー"));}' +
     '  }).withFailureHandler(err=>{btn.disabled=false;btn.textContent="保存";alert(friendlyErr(err,true));})' +
     '  .saveVisitRecord({url:curRec.r.url,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date});}' +
+    'function safeReload(){const a=document.createElement("a");a.href=WEBAPP_URL;a.target="_top";document.body.appendChild(a);a.click();a.remove();}' +
     'function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
     'function friendlyErr(err,forWrite){const m=String(err);const p=m.indexOf("権限")!==-1||m.toLowerCase().indexOf("permission")!==-1||m.toLowerCase().indexOf("access")!==-1;return p?(forWrite?"権限がないため保存できませんでした。対象のスプレッドシートで編集権限があるか確認し、権限付与後にもう一度お試しください。":"権限がないため記録シートを開けませんでした。対象のスプレッドシートで閲覧権限があるか確認し、権限付与後にもう一度お試しください。"):m;}' +
     'document.getElementById("q").value=curQ;' +
@@ -904,9 +907,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '    google.script.run.withSuccessHandler(res=>{' +
     '      if(res&&res.ok){' +
     '        alert(res.message);' +
-    '        google.script.run.withSuccessHandler(url=>{' +
-    '          window.top.location.href=url;' +
-    '        }).getWebappUrl();' +
+    '        safeReload();' +
     '      } else {' +
     '        btnUpdate.disabled=false;btnUpdate.textContent=origText;' +
     '        alert("更新に失敗しました: "+(res&&res.error?res.error:"不明なエラー"));' +
@@ -921,15 +922,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     'if(btnVersion){' +
     '  btnVersion.onclick=()=>{' +
     '    if(confirm("アプリを再起動（最新状態へ更新）しますか？")){' +
-    '      try{' +
-    '        window.top.location.reload(true);' +
-    '      }catch(e){' +
-    '        try{' +
-    '          window.top.location.href=window.top.location.href;' +
-    '        }catch(e2){' +
-    '          window.location.reload(true);' +
-    '        }' +
-    '      }' +
+    '      safeReload();' +
     '    }' +
     '  };' +
     '}' +
