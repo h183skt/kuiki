@@ -66,8 +66,14 @@ function mergeAreaSheets() {
   const seenAreas = new Set();
 
   files.forEach(file => {
-    const areaName = file.getName().replace(/\s*のコピー\s*$/, '').trim();
-    const areaKey = leadingNumber_(file.getName());
+    const fileName = file.getName();
+    // ファイル名に「テスト」という文字列が含まれている場合は統合から除外
+    if (fileName.indexOf('テスト') !== -1) {
+      return;
+    }
+
+    const areaName = fileName.replace(/\s*のコピー\s*$/, '').trim();
+    const areaKey = leadingNumber_(fileName);
 
     if (seenAreas.has(areaKey)) {
       warnings.push('重複スキップ: ' + file.getName());
