@@ -1,5 +1,5 @@
 /**
- * 区域マンション一覧 ウェブアプリ（webapp.gs v1.3.0 複数ワークシート動的取得・タブ切り替え対応）
+ * 区域マンション一覧 ウェブアプリ（webapp.gs v1.2.1 訪問記録 入力対応・安全チェック追加）
  * - 「保存」でセル（結果）とその真下（日付）に書き込みます。
  * - B列（最終訪問日）は保護されている可能性があるため更新しません。
  * v4.1からの追加点:
@@ -22,7 +22,7 @@ const WEBAPP = {
   COL_URL: 10,
 
   TITLE: '区域マンション一覧',
-  VERSION: 'v1.3.0',
+  VERSION: 'v1.2.1',
   OPEN_IN_APP: false,
   CACHE_SHEET: '座標キャッシュ',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
@@ -216,82 +216,66 @@ function getVisitRecords(url) {
       };
     }
 
-    const ids = parseSheetUrl_(url);
-    if (!ids) {
+    const sheet = openSheetByUrl_(url, 'read');
+    if (!sheet) {
       return {
         ok: false,
         error: 'URLからシートを特定できませんでした。'
       };
     }
 
-    const ss = SpreadsheetApp.openById(ids.fileId);
-    const allSheets = ss.getSheets();
-    const sheetsData = [];
+    const lastRow = sheet.getLastRow();
+    const start = WEBAPP.REC_DATA_START_ROW;
 
-    for (let s = 0; s < allSheets.length; s++) {
-      const sheet = allSheets[s];
-      const sheetName = sheet.getName();
-
-      if (sheetName === 'マンション一覧' || sheetName === '設定' || sheetName === '座標キャッシュ') {
-        continue;
-      }
-
-      const lastRow = sheet.getLastRow();
-      const start = WEBAPP.REC_DATA_START_ROW;
-      const rooms = [];
-
-      if (lastRow >= start) {
-        const numRows = lastRow - start + 1;
-        const firstCol = WEBAPP.REC_ROOM_COL;
-        const numCols = WEBAPP.REC_FIRST_VISIT_COL - 1 + WEBAPP.REC_VISIT_COLS;
-        const disp = sheet.getRange(start, firstCol, numRows, numCols).getDisplayValues();
-
-        for (let i = 0; i < disp.length; i += 2) {
-          const topRow = disp[i];
-          const botRow = (i + 1 < disp.length) ? disp[i + 1] : [];
-
-          const room = String(topRow[WEBAPP.REC_ROOM_COL - 1] || '').trim();
-          if (!room) continue;
-
-          const prev = String(topRow[WEBAPP.REC_PREV_COL - 1] || '').trim();
-          const cells = [];
-
-          for (let c = 0; c < WEBAPP.REC_VISIT_COLS; c++) {
-            const col = (WEBAPP.REC_FIRST_VISIT_COL - 1) + c;
-            const result = String(topRow[col] || '').trim();
-            const date = String((botRow[col] !== undefined ? botRow[col] : '') || '').trim();
-            cells.push({
-              result: result,
-              date: date
-            });
-          }
-
-          rooms.push({
-            room: room,
-            prev: prev,
-            cells: cells,
-            rowTop: start + i
-          });
-        }
-      }
-
-      sheetsData.push({
-        sheetId: String(sheet.getSheetId()),
-        sheetName: sheetName,
-        rooms: rooms
-      });
+    if (lastRow < start) {
+      return {
+        ok: true,
+        rooms: [],
+        sheetName: sheet.getName(),
+        periods: WEBAPP.REC_PERIODS,
+        results: WEBAPP.REC_RESULTS
+      };
     }
 
-    if (sheetsData.length === 0) {
-      return {
-        ok: false,
-        error: '有効なワークシートが見つかりませんでした。'
-      };
+    const numRows = lastRow - start + 1;
+    const firstCol = WEBAPP.REC_ROOM_COL;
+    const numCols = WEBAPP.REC_FIRST_VISIT_COL - 1 + WEBAPP.REC_VISIT_COLS;
+    const disp = sheet.getRange(start, firstCol, numRows, numCols).getDisplayValues();
+
+    const rooms = [];
+
+    for (let i = 0; i < disp.length; i += 2) {
+      const topRow = disp[i];
+      const botRow = (i + 1 < disp.length) ? disp[i + 1] : [];
+
+      const room = String(topRow[WEBAPP.REC_ROOM_COL - 1] || '').trim();
+      if (!room) continue;
+
+      const prev = String(topRow[WEBAPP.REC_PREV_COL - 1] || '').trim();
+      const cells = [];
+
+      for (let c = 0; c < WEBAPP.REC_VISIT_COLS; c++) {
+        const col = (WEBAPP.REC_FIRST_VISIT_COL - 1) + c;
+        const result = String(topRow[col] || '').trim();
+        const date = String((botRow[col] !== undefined ? botRow[col] : '') || '').trim();
+        cells.push({
+          result: result,
+          date: date
+        });
+      }
+
+      rooms.push({
+        room: room,
+        prev: prev,
+        cells: cells,
+        rowTop: start + i
+      });
     }
 
     return {
       ok: true,
-      sheets: sheetsData,
+      sheetName: sheet.getName(),
+      rooms: rooms,
       periods: WEBAPP.REC_PERIODS,
       results: WEBAPP.REC_RESULTS
     };
@@ -329,7 +313,7 @@ function saveVisitRecord(p) {
       };
     }
 
-    const sheet = openSheetByUrl_(p.url, p.sheetId, 'write');
+    const sheet = openSheetByUrl_(p.url, 'write');
     if (!sheet) {
       return {
         ok: false,
@@ -495,25 +479,17 @@ function isAllowedSheetUrl_(url) {
   return allowed[key] === true;
 }
 
-function openSheetByUrl_(url, sheetIdOrPurpose, purpose) {
-  let sheetId = null;
-  let actualPurpose = sheetIdOrPurpose;
-  if (typeof sheetIdOrPurpose === 'string' && sheetIdOrPurpose !== 'read' && sheetIdOrPurpose !== 'write') {
-    sheetId = sheetIdOrPurpose;
-    actualPurpose = purpose;
-  }
-
+function openSheetByUrl_(url, purpose) {
   const ids = parseSheetUrl_(url);
   if (!ids) return null;
 
   const ss = SpreadsheetApp.openById(ids.fileId);
-  const targetGid = sheetId !== null ? sheetId : ids.gid;
 
-  if (targetGid !== null) {
+  if (ids.gid !== null) {
     const all = ss.getSheets();
 
     for (let i = 0; i < all.length; i++) {
-      if (String(all[i].getSheetId()) === String(targetGid)) {
+      if (String(all[i].getSheetId()) === String(ids.gid)) {
         return all[i];
       }
     }
@@ -686,7 +662,6 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '.rectable .filled{background:#e8f0fe;}' +
     '.rectable td.active-cell{background:#fff9c4;}' +
     '.rectable td.past-cell{background:#f1f3f4;color:#70757a;}' +
-    '.tab-btn.on{background:var(--accent) !important;color:#fff !important;border-color:var(--accent) !important;font-weight:700;}' +
     '.recnote{font-size:12px;color:var(--sub);margin:0 0 8px;}' +
     '#edit{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;display:none;}' +
     '#editbox{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:16px 16px 0 0;padding:14px 16px 22px;max-height:calc(100vh - 24px);overflow:auto;}' +
@@ -728,7 +703,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     'const RESULTS=' + resultsJson + ';' +
     'const DEFC="' + WEBAPP.DEFAULT_COLOR + '";' +
     'const STANDALONE=(navigator.standalone===true)||window.matchMedia("(display-mode: standalone)").matches;' +
-    'let curArea="";let curQ="";let mode="map";let map=null;let layer=null;let curSheetIndex=0;' +
+    'let curArea="";let curQ="";let mode="map";let map=null;let layer=null;' +
     'let watchId=null;let meMarker=null;let meCircle=null;let lastPos=null;let firstFix=true;' +
     'let savedView=null;' +
     'let curRec=null;' +
@@ -817,7 +792,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '  mk.on("popupopen",()=>{const el=document.getElementById(popId);if(el)el.onclick=()=>openRec(r);});' +
     '  mk.addTo(layer);});' +
     ' if(pts.length>0&&watchId===null&&!savedView)map.fitBounds(pts,{padding:[30,30],maxZoom:17});}' +
-    'function openRec(r){curSheetIndex=0;const m=document.getElementById("rec");m.style.display="block";' +
+    'function openRec(r){const m=document.getElementById("rec");m.style.display="block";' +
     ' document.getElementById("rectitle").textContent=r.name;' +
     ' const body=document.getElementById("recbody");body.innerHTML="<p class=recnote>読み込み中…</p>";' +
     ' if(!r.url){body.innerHTML="<p class=recnote>この建物にはシートのURLが設定されていません。</p>";return;}' +
@@ -827,24 +802,13 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     'function currentPeriodIndex(){return Math.floor(new Date().getMonth()/3);}' +
     'function renderRec(){const body=document.getElementById("recbody");const res=curRec.data;' +
     ' if(!res||!res.ok){body.innerHTML="<p class=recnote>読み込みに失敗しました: "+esc(res&&res.error?res.error:"不明なエラー")+"</p>";return;}' +
-    ' if(!res.sheets||res.sheets.length===0){body.innerHTML="<p class=recnote>部屋データが見つかりませんでした。</p>";return;}' +
-    ' if(curSheetIndex>=res.sheets.length)curSheetIndex=0;' +
-    ' const currentSheet=res.sheets[curSheetIndex];' +
+    ' if(!res.rooms||res.rooms.length===0){body.innerHTML="<p class=recnote>部屋データが見つかりませんでした。</p>";return;}' +
     ' const periods=res.periods;const reps=["1回目","2回目","3回目"];const curPi=currentPeriodIndex();' +
-    ' let h="";' +
-    ' if(res.sheets.length>1){' +
-    '   h+="<div class=\\"sheet-tabs\\" style=\\"display:flex;gap:6px;overflow-x:auto;padding:2px 2px 10px;margin-bottom:8px;border-bottom:1px solid var(--line);\\">";' +
-    '   res.sheets.forEach((sh,idx)=>{' +
-    '     const active=idx===curSheetIndex?"on":"";' +
-    '     h+="<button class=\\"tab-btn "+active+"\\" data-idx="+idx+" style=\\"flex:0 0 auto;font-size:12px;padding:6px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--sub);cursor:pointer;\\">"+esc(sh.sheetName)+"</button>";' +
-    '   });' +
-    '   h+="</div>";' +
-    ' }' +
-    ' h+="<p class=recnote>セルをタップして記録を入力できます。</p>";' +
+    ' let h="<p class=recnote>セルをタップして記録を入力できます。</p>";' +
     ' h+="<table class=rectable><thead><tr><th class=rm>部屋</th>";' +
     ' periods.forEach((p,pi)=>{reps.forEach(rep=>{h+="<th"+(pi===curPi?" class=\\"curp\\"":"")+">"+esc(p)+"<br>"+rep+"</th>";});});' +
     ' h+="</tr></thead><tbody>";' +
-    ' currentSheet.rooms.forEach((room,ri)=>{' +
+    ' res.rooms.forEach((room,ri)=>{' +
     '  const startCi=curPi*3;let targetCi=-1;' +
     '  for(let offset=0;offset<3;offset++){' +
     '    const ciTemp=startCi+offset;' +
@@ -860,12 +824,11 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '   h+="<td class=\\"cell"+f+active+past+"\\" data-ri="+ri+" data-ci="+ci+"><div class=res>"+esc(cell.result)+"</div><div class=date>"+esc(cell.date)+"</div></td>";});' +
     '  h+="</tr>";});' +
     ' h+="</tbody></table>";body.innerHTML=h;' +
-    ' [...body.querySelectorAll(".tab-btn")].forEach(btn=>{btn.onclick=()=>{curSheetIndex=Number(btn.dataset.idx);renderRec();};});' +
     ' const curp=body.querySelector("th.curp");' +
     ' if(curp){const rm=body.querySelector("th.rm");const off=rm?rm.offsetWidth:50;' +
     '  body.scrollLeft=curp.offsetLeft-off;}' +
     ' [...body.querySelectorAll("td.cell")].forEach(td=>{td.onclick=()=>openEdit(Number(td.dataset.ri),Number(td.dataset.ci));});}' +
-    'function openEdit(ri,ci){const currentSheet=curRec.data.sheets[curSheetIndex];const room=currentSheet.rooms[ri];const cell=room.cells[ci];' +
+    'function openEdit(ri,ci){const room=curRec.data.rooms[ri];const cell=room.cells[ci];' +
     ' curEdit={ri:ri,ci:ci,chosen:cell.result||"",clearMode:false};' +
     ' document.getElementById("edittitle").textContent=room.room+"号室　"+periodLabel(ci);' +
     ' const rr=document.getElementById("resrow");rr.innerHTML="";' +
@@ -880,7 +843,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     'function periodLabel(ci){const periods=["1〜3月","4〜6月","7〜9月","10〜12月"];const reps=["1回目","2回目","3回目"];' +
     ' return periods[Math.floor(ci/3)]+" "+reps[ci%3];}' +
     'function closeEdit(){document.getElementById("edit").style.display="none";curEdit=null;}' +
-    'function doSave(){if(!curEdit)return;const currentSheet=curRec.data.sheets[curSheetIndex];const room=currentSheet.rooms[curEdit.ri];const cell=room.cells[curEdit.ci];' +
+    'function doSave(){if(!curEdit)return;const room=curRec.data.rooms[curEdit.ri];const cell=room.cells[curEdit.ci];' +
     ' const newResult=curEdit.clearMode?"":(curEdit.chosen||"");const newDate=curEdit.clearMode?"":document.getElementById("editdate").value.trim();' +
     ' if(curEdit.clearMode&&!cell.result&&!cell.date){closeEdit();return;}' +
     ' if(curEdit.clearMode&&!confirm("このマスの記録を消去しますか？"))return;' +
@@ -891,7 +854,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '    closeEdit();openRec(curRec.r);}' +
     '   else{alert("保存に失敗しました: "+(res&&res.error?res.error:"不明なエラー"));}' +
     '  }).withFailureHandler(err=>{btn.disabled=false;btn.textContent="保存";alert(friendlyErr(err,true));})' +
-    '  .saveVisitRecord({url:curRec.r.url,sheetId:currentSheet.sheetId,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date});}' +
+    '  .saveVisitRecord({url:curRec.r.url,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date});}' +
     'function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
     'function friendlyErr(err,forWrite){const m=String(err);const p=m.indexOf("権限")!==-1||m.toLowerCase().indexOf("permission")!==-1||m.toLowerCase().indexOf("access")!==-1;return p?(forWrite?"権限がないため保存できませんでした。対象のスプレッドシートで編集権限があるか確認し、権限付与後にもう一度お試しください。":"権限がないため記録シートを開けませんでした。対象のスプレッドシートで閲覧権限があるか確認し、権限付与後にもう一度お試しください。"):m;}' +
     'document.getElementById("q").value=curQ;' +
