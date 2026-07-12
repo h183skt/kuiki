@@ -1,5 +1,5 @@
 /**
- * 区域マンション一覧 ウェブアプリ（webapp.gs v1.3.3 アプリ再起動・ローディング表示改善）
+ * 区域マンション一覧 ウェブアプリ（webapp.gs v1.3.4 ローディング画面へアプリアイコン追加）
  * - 「保存」でセル（結果）とその真下（日付）に書き込みます。
  * - B列（最終訪問日）は保護されている可能性があるため更新しません。
  * v4.1からの追加点:
@@ -22,7 +22,7 @@ const WEBAPP = {
   COL_URL: 10,
 
   TITLE: '区域マンション一覧',
-  VERSION: 'v1.3.3',
+  VERSION: 'v1.3.4',
   OPEN_IN_APP: false,
   CACHE_SHEET: '座標キャッシュ',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
@@ -659,6 +659,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '.maplink{flex:0 0 auto;font-size:13px;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:6px 10px;}' +
     '.pop .pname{font-size:15px;font-weight:700;margin-bottom:2px;}' +
     '.pop .paddr{font-size:12px;color:var(--sub);}' +
+    '.loading-logo{width:48px;height:48px;margin-bottom:12px;}' +
     '.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;color:var(--sub);}' +
     '.loading-wrap p{font-size:15px;font-weight:600;margin:12px 0 0;}' +
     '.spinner{width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}' +
@@ -730,6 +731,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     'const DATA=' + dataJson + ';' +
     'const COLORS=' + colorsJson + ';' +
     'const RESULTS=' + resultsJson + ';' +
+    'const APP_ICON="' + WEBAPP.ICON_URL + '";' +
     'const DEFC="' + WEBAPP.DEFAULT_COLOR + '";' +
     'const STANDALONE=(navigator.standalone===true)||window.matchMedia("(display-mode: standalone)").matches;' +
     'let curArea="";let curQ="";let mode="map";let map=null;let layer=null;' +
@@ -828,7 +830,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     ' if(pts.length>0&&watchId===null&&!savedView)map.fitBounds(pts,{padding:[30,30],maxZoom:17});}' +
     'function openRec(r){curSheetIndex=0;const m=document.getElementById("rec");m.style.display="block";' +
     ' document.getElementById("rectitle").textContent=r.name;' +
-    ' const body=document.getElementById("recbody");body.innerHTML="<div class=\\"loading-wrap\\"><div class=\\"spinner\\"></div><p>データを読み込み中…</p></div>";' +
+    ' const body=document.getElementById("recbody");body.innerHTML="<div class=\\"loading-wrap\\"><img src=\\""+APP_ICON+"\\" class=\\"loading-logo\\"><div class=\\"spinner\\"></div><p>訪問記録を読み込み中…</p></div>";' +
     ' if(!r.url){body.innerHTML="<p class=recnote>この建物にはシートのURLが設定されていません。</p>";return;}' +
     ' google.script.run.withSuccessHandler(res=>{curRec={r:r,data:res};renderRec();}).withFailureHandler(err=>{' +
     '  body.innerHTML="<p class=recnote>"+esc(friendlyErr(err,false))+"</p>";}).getVisitRecords(r.url);}' +
