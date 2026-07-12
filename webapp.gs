@@ -660,6 +660,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '.rectable .res{font-weight:600;min-height:14px;}' +
     '.rectable .date{color:var(--sub);font-size:11px;min-height:12px;}' +
     '.rectable .filled{background:#e8f0fe;}' +
+    '.rectable td.active-cell{background:#fff9c4;}' +
     '.recnote{font-size:12px;color:var(--sub);margin:0 0 8px;}' +
     '#edit{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;display:none;}' +
     '#editbox{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:16px 16px 0 0;padding:14px 16px 22px;max-height:calc(100vh - 24px);overflow:auto;}' +
@@ -806,9 +807,19 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     ' h+="<table class=rectable><thead><tr><th class=rm>部屋</th>";' +
     ' periods.forEach((p,pi)=>{reps.forEach(rep=>{h+="<th"+(pi===curPi?" class=\\"curp\\"":"")+">"+esc(p)+"<br>"+rep+"</th>";});});' +
     ' h+="</tr></thead><tbody>";' +
-    ' res.rooms.forEach((room,ri)=>{h+="<tr><td class=rm>"+esc(room.room)+"</td>";' +
+    ' res.rooms.forEach((room,ri)=>{' +
+    '  const startCi=curPi*3;let targetCi=-1;' +
+    '  for(let offset=0;offset<3;offset++){' +
+    '    const ciTemp=startCi+offset;' +
+    '    const cellTemp=room.cells[ciTemp];' +
+    '    if(cellTemp&&!cellTemp.result&&!cellTemp.date){' +
+    '      targetCi=ciTemp;break;' +
+    '    }' +
+    '  }' +
+    '  h+="<tr><td class=rm>"+esc(room.room)+"</td>";' +
     '  room.cells.forEach((cell,ci)=>{const f=(cell.result||cell.date)?" filled":"";' +
-    '   h+="<td class=\\"cell"+f+"\\" data-ri="+ri+" data-ci="+ci+"><div class=res>"+esc(cell.result)+"</div><div class=date>"+esc(cell.date)+"</div></td>";});' +
+    '   const active=(ci===targetCi)?" active-cell":"";' +
+    '   h+="<td class=\\"cell"+f+active+"\\" data-ri="+ri+" data-ci="+ci+"><div class=res>"+esc(cell.result)+"</div><div class=date>"+esc(cell.date)+"</div></td>";});' +
     '  h+="</tr>";});' +
     ' h+="</tbody></table>";body.innerHTML=h;' +
     ' [...body.querySelectorAll("td.cell")].forEach(td=>{td.onclick=()=>openEdit(Number(td.dataset.ri),Number(td.dataset.ci));});}' +
