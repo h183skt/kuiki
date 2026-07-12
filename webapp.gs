@@ -1,5 +1,5 @@
 /**
- * 区域マンション一覧 ウェブアプリ（webapp.gs v1.3.4 ローディング画面へアプリアイコン追加）
+ * 区域マンション一覧 ウェブアプリ（webapp.gs v1.3.5 アプリ再起動の確実化修正）
  * - 「保存」でセル（結果）とその真下（日付）に書き込みます。
  * - B列（最終訪問日）は保護されている可能性があるため更新しません。
  * v4.1からの追加点:
@@ -22,7 +22,7 @@ const WEBAPP = {
   COL_URL: 10,
 
   TITLE: '区域マンション一覧',
-  VERSION: 'v1.3.4',
+  VERSION: 'v1.3.5',
   OPEN_IN_APP: false,
   CACHE_SHEET: '座標キャッシュ',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
@@ -921,9 +921,15 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     'if(btnVersion){' +
     '  btnVersion.onclick=()=>{' +
     '    if(confirm("アプリを再起動（最新状態へ更新）しますか？")){' +
-    '      google.script.run.withSuccessHandler(url=>{' +
-    '        window.top.location.href=url;' +
-    '      }).getWebappUrl();' +
+    '      try{' +
+    '        window.top.location.reload(true);' +
+    '      }catch(e){' +
+    '        try{' +
+    '          window.top.location.href=window.top.location.href;' +
+    '        }catch(e2){' +
+    '          window.location.reload(true);' +
+    '        }' +
+    '      }' +
     '    }' +
     '  };' +
     '}' +
