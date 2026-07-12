@@ -1,5 +1,5 @@
 /**
- * 区域マンション一覧 ウェブアプリ（webapp.gs v1.3.2 更新完了時のリロードバグ修正）
+ * 区域マンション一覧 ウェブアプリ（webapp.gs v1.3.3 アプリ再起動・ローディング表示改善）
  * - 「保存」でセル（結果）とその真下（日付）に書き込みます。
  * - B列（最終訪問日）は保護されている可能性があるため更新しません。
  * v4.1からの追加点:
@@ -22,7 +22,7 @@ const WEBAPP = {
   COL_URL: 10,
 
   TITLE: '区域マンション一覧',
-  VERSION: 'v1.3.2',
+  VERSION: 'v1.3.3',
   OPEN_IN_APP: false,
   CACHE_SHEET: '座標キャッシュ',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
@@ -634,7 +634,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     'header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 12px;z-index:1001;}' +
     '.topbar{display:flex;align-items:center;gap:8px;margin-bottom:8px;}' +
     'h1{font-size:16px;margin:0;flex:1;}' +
-    '.ver{font-size:11px;color:var(--sub);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-right:4px;white-space:nowrap;}' +
+    '.ver{font-size:11px;color:var(--sub);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-right:4px;white-space:nowrap;cursor:pointer;user-select:none;}' +
+    '.ver:active{opacity:0.6;}' +
     '.toggle{display:flex;border:1px solid var(--accent);border-radius:8px;overflow:hidden;}' +
     '.toggle button{font-size:13px;padding:6px 14px;border:0;background:var(--card);color:var(--accent);}' +
     '.toggle button.on{background:var(--accent);color:#fff;}' +
@@ -658,6 +659,11 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '.maplink{flex:0 0 auto;font-size:13px;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:6px 10px;}' +
     '.pop .pname{font-size:15px;font-weight:700;margin-bottom:2px;}' +
     '.pop .paddr{font-size:12px;color:var(--sub);}' +
+    '.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;color:var(--sub);}' +
+    '.loading-wrap p{font-size:15px;font-weight:600;margin:12px 0 0;}' +
+    '.spinner{width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}' +
+    '@keyframes spin{to{transform:rotate(360deg);}}' +
+    '.rectable{width:100%;border-collapse:collapse;margin-top:4px;font-size:13px;border:1px solid var(--line);}' +
     '.pop .dirrow{display:flex;gap:5px;margin-top:7px;}' +
     '.pop .dirlink{flex:1;text-align:center;font-size:12px;font-weight:600;background:var(--green);color:#fff;border-radius:8px;padding:5px 4px;text-decoration:none;white-space:nowrap;}' +
     '.pop .recbtn{display:block;text-align:center;margin-top:5px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;border-radius:8px;padding:5px;cursor:pointer;}' +
@@ -673,7 +679,6 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '#rechead h2{font-size:16px;margin:0;flex:1;}' +
     '#recclose{font-size:14px;font-weight:600;color:var(--accent);background:none;border:1px solid var(--accent);border-radius:8px;padding:6px 12px;}' +
     '#recbody{flex:1;overflow:auto;padding:10px;}' +
-    '.rectable{border-collapse:collapse;font-size:12px;white-space:nowrap;}' +
     '.rectable th,.rectable td{border:1px solid var(--line);padding:4px 6px;text-align:center;}' +
     '.rectable thead th{background:#0b8043;color:#fff;position:sticky;top:0;z-index:2;}' +
     '.rectable thead th.curp{background:var(--accent);}' +
@@ -707,7 +712,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '#save{background:var(--accent);color:#fff;}' +
     '</style></head><body>' +
     '<header><div class="topbar"><h1>' + WEBAPP.TITLE + '</h1>' +
-    '<span class="ver">' + WEBAPP.VERSION + '</span>' +
+    '<span class="ver" id="btnVersion">' + WEBAPP.VERSION + '</span>' +
     '<button id="btnUpdate" style="display:none;font-size:11px;color:var(--accent);background:var(--card);border:1px solid var(--accent);border-radius:999px;padding:2px 8px;margin-right:4px;white-space:nowrap;cursor:pointer;">マスター更新</button>' +
     '<div class="toggle"><button id="bList">一覧</button><button id="bMap" class="on">地図</button></div></div>' +
     '<input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off">' +
@@ -821,9 +826,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '  mk.on("popupopen",()=>{const el=document.getElementById(popId);if(el)el.onclick=()=>openRec(r);});' +
     '  mk.addTo(layer);});' +
     ' if(pts.length>0&&watchId===null&&!savedView)map.fitBounds(pts,{padding:[30,30],maxZoom:17});}' +
-    'function openRec(r){const m=document.getElementById("rec");m.style.display="block";' +
+    'function openRec(r){curSheetIndex=0;const m=document.getElementById("rec");m.style.display="block";' +
     ' document.getElementById("rectitle").textContent=r.name;' +
-    ' const body=document.getElementById("recbody");body.innerHTML="<p class=recnote>読み込み中…</p>";' +
+    ' const body=document.getElementById("recbody");body.innerHTML="<div class=\\"loading-wrap\\"><div class=\\"spinner\\"></div><p>データを読み込み中…</p></div>";' +
     ' if(!r.url){body.innerHTML="<p class=recnote>この建物にはシートのURLが設定されていません。</p>";return;}' +
     ' google.script.run.withSuccessHandler(res=>{curRec={r:r,data:res};renderRec();}).withFailureHandler(err=>{' +
     '  body.innerHTML="<p class=recnote>"+esc(friendlyErr(err,false))+"</p>";}).getVisitRecords(r.url);}' +
@@ -908,6 +913,16 @@ function buildHtml_(dataJson, colorsJson, resultsJson) {
     '      btnUpdate.disabled=false;btnUpdate.textContent=origText;' +
     '      alert("通信エラーが発生しました: "+err);' +
     '    }).runMasterUpdate();' +
+    '  };' +
+    '}' +
+    'const btnVersion=document.getElementById("btnVersion");' +
+    'if(btnVersion){' +
+    '  btnVersion.onclick=()=>{' +
+    '    if(confirm("アプリを再起動（最新状態へ更新）しますか？")){' +
+    '      google.script.run.withSuccessHandler(url=>{' +
+    '        window.top.location.href=url;' +
+    '      }).getWebappUrl();' +
+    '    }' +
     '  };' +
     '}' +
     'setMode(initMode);' +
