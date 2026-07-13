@@ -660,12 +660,15 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 4px 16px rgba(0,0,0,0.08);display:flex;flex-direction:column;align-items:center;">' +
     '    <img src="' + WEBAPP.ICON_URL + '" style="width:72px;height:72px;margin-bottom:16px;">' +
     '    <h2 style="font-size:18px;margin:0 0 4px;font-weight:700;color:var(--text);">区域訪問記録アプリ</h2>' +
-    '    <div style="font-size:12px;color:var(--sub);margin-bottom:16px;">' + WEBAPP.VERSION + '</div>' +
-    '    <div id="login-loading" style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:8px;">' +
+    '    <div style="font-size:12px;color:var(--sub);margin-bottom:20px;">' + WEBAPP.VERSION + '</div>' +
+    '    <button id="login-start-btn" onclick="attemptLogin()" style="width:100%;font-size:16px;font-weight:700;padding:14px;border-radius:10px;border:0;background:var(--accent);color:#fff;cursor:pointer;box-shadow:0 2px 6px rgba(26,115,232,0.3);display:flex;align-items:center;justify-content:center;">' +
+    '      Googleアカウントでログイン' +
+    '    </button>' +
+    '    <div id="login-loading" style="display:none;flex-direction:column;align-items:center;gap:12px;margin-top:8px;">' +
     '      <div class="spinner"></div>' +
     '      <p style="font-size:14px;color:var(--sub);margin:0;font-weight:600;">Google認証を確認中…</p>' +
     '    </div>' +
-    '    <div id="login-error-msg" style="color:#d93025;font-size:13px;margin-top:12px;text-align:center;min-height:18px;font-weight:600;"></div>' +
+    '    <div id="login-error-msg" style="color:#d93025;font-size:13px;margin-top:12px;text-align:center;min-height:18px;font-weight:600;width:100%;"></div>' +
     '  </div>' +
     '</div>' +
     '<header><div class="topbar"><h1>' + WEBAPP.TITLE + '</h1>' +
@@ -882,7 +885,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'function attemptLogin() {' +
     '  const errorEl = document.getElementById("login-error-msg");' +
     '  const loadingEl = document.getElementById("login-loading");' +
+    '  const btnEl = document.getElementById("login-start-btn");' +
     '  errorEl.textContent = "";' +
+    '  if(btnEl) btnEl.style.display = "none";' +
     '  if(loadingEl) loadingEl.style.display = "flex";' +
     '  google.script.run.withSuccessHandler(res => {' +
     '    if (res && res.ok) {' +
@@ -895,19 +900,23 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '      document.getElementById("login-screen").style.display = "none";' +
     '      initApp();' +
     '    } else {' +
+    '      if(btnEl) btnEl.style.display = "flex";' +
     '      if(loadingEl) loadingEl.style.display = "none";' +
     '      const errMsg = res ? res.error : "ログインに失敗しました。";' +
     '      if (errMsg.indexOf("登録されていません") !== -1) {' +
     '        const showEmail = (res && res.email) ? res.email : "（不明）";' +
     '        errorEl.innerHTML = "<div style=\\"border:1px solid #f5c2c7;background:#f8d7da;color:#842029;border-radius:10px;padding:12px;margin-top:8px;font-size:14.5px;line-height:1.6;font-weight:normal;text-align:left;\\">" +' +
-    '          "Googleアカウント（" + esc(showEmail) + "）は登録されていないか、設定が間違っています。<br>" +' +
-    '          "<b style=\\"color:#b02a37;font-size:15px;\\">この画面を区域の係にお見せください。</b></div>";' +
+    '          "Googleアカウントが登録されていないか、設定が間違っています。<br>" +' +
+    '          "<b style=\\"color:#b02a37;font-size:15px;\\">この画面を区域の係にお見せください。</b><br><br>" +' +
+    '          "<div style=\\"background:#fff;border:1px solid #f5c2c7;border-radius:6px;padding:8px;text-align:center;font-size:16px;font-weight:800;text-decoration:underline;color:#202124;word-break:break-all;\\">" + esc(showEmail) + "</div>" +' +
+    '          "</div>";' +
     '      } else {' +
     '        errorEl.textContent = errMsg;' +
     '      }' +
     '      document.getElementById("login-screen").style.display = "flex";' +
     '    }' +
     '  }).withFailureHandler(err => {' +
+    '    if(btnEl) btnEl.style.display = "flex";' +
     '    if(loadingEl) loadingEl.style.display = "none";' +
     '    errorEl.textContent = "通信エラーが発生しました: " + err;' +
     '    document.getElementById("login-screen").style.display = "flex";' +
@@ -917,9 +926,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  alert("Googleアカウントを切り替えるには、Googleアカウント自体からログアウトするか、ブラウザの別のアカウントプロファイルをご利用ください。");' +
     '}' +
     
-    // アプリ起動時の自動ログイン
+    // アプリ起動時はボタンクリックを待つため、自動ログインは行いません。
     'window.onload = () => {' +
-    '  attemptLogin();' +
+    '  document.getElementById("login-screen").style.display = "flex";' +
     '};' +
     
     'const btnUpdate=document.getElementById("btnUpdate");' +
