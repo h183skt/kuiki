@@ -914,7 +914,23 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  }).getAppData();' +
     '}' +
     'function logout() {' +
-    '  alert("Googleアカウントを切り替えるには、Googleアカウント自体からログアウトするか、ブラウザの別のアカウントプロファイルをご利用ください。");' +
+    '  const ok = confirm("アカウントを切り替えますか？\\n\\n[OK]：別のGoogleアカウントに切り替える\\n[キャンセル]：Googleアカウントから完全にログアウトする");' +
+    '  let targetUrl = "";' +
+    '  if (ok) {' +
+    '    targetUrl = "https://accounts.google.com/AccountChooser?continue=" + encodeURIComponent(location.href);' +
+    '  } else {' +
+    '    if (confirm("Googleアカウントから完全にログアウトしますか？\\n（Gmailやスプレッドシートなど他のGoogleサービスからも一時的にログアウトされます）")) {' +
+    '      targetUrl = "https://accounts.google.com/Logout?continue=" + encodeURIComponent(location.href);' +
+    '    }' +
+    '  }' +
+    '  if (targetUrl) {' +
+    '    const a = document.createElement("a");' +
+    '    a.href = targetUrl;' +
+    '    a.target = "_top";' +
+    '    document.body.appendChild(a);' +
+    '    a.click();' +
+    '    a.remove();' +
+    '  }' +
     '}' +
     
     // アプリ起動時の自動ログイン
