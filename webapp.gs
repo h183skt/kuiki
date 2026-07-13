@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.9.4',
+  VERSION: 'v1.9.5',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -816,7 +816,13 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' const body=document.getElementById("recbody");body.innerHTML="<div class=\\"loading-wrap\\"><img src=\\""+APP_ICON+"\\" class=\\"loading-logo\\"><div class=\\"spinner\\"></div><p>訪問記録を読み込み中…</p></div>";' +
     ' if(!r.url){body.innerHTML="<p class=recnote>この建物にはシートのURLが設定されていません。</p>";return;}' +
     ' google.script.run.withSuccessHandler(res=>{curRec={r:r,data:res};renderRec();}).withFailureHandler(err=>{' +
-    '  body.innerHTML="<p class=recnote>"+esc(friendlyErr(err,false))+"</p>";}).getVisitRecords(r.url);}' +
+    '  const friendly=friendlyErr(err,false);let html="<div style=\\"padding:12px;\\"><p class=recnote>"+esc(friendly)+"</p>";' +
+    '  if(friendly.indexOf("権限がないため")!==-1&&USER_EMAIL){' +
+    '    html+="<div style=\\"border:1px solid #f5c2c7;background:#f8d7da;color:#842029;border-radius:10px;padding:12px;margin-top:14px;font-size:14.5px;line-height:1.6;font-weight:normal;text-align:left;\\">" +' +
+    '      "登録（共有設定）が必要なアカウント:<br>" +' +
+    '      "<div style=\\"background:#fff;border:1px solid #f5c2c7;border-radius:6px;padding:8px;text-align:center;font-size:16px;font-weight:800;text-decoration:underline;color:#202124;word-break:break-all;margin-top:8px;\\">" + esc(USER_EMAIL) + "</div></div>";' +
+    '  }' +
+    '  html+="</div>";body.innerHTML=html;}).getVisitRecords(r.url);}' +
     'function closeRec(){closeEdit();document.getElementById("rec").style.display="none";curRec=null;}' +
     'function currentPeriodIndex(){return Math.floor(new Date().getMonth()/3);}' +
     'function renderRec(){const body=document.getElementById("recbody");const res=curRec.data;' +
@@ -963,6 +969,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notes=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.9.5: 閲覧・編集権限エラー発生時に、現在ログイン中のアカウントアドレスを大きく表示する機能を追加。\\n" +' +
     '      "・v1.9.4: スプレッドシートの権限エラー発生時に、区域の係への問い合わせを促すメッセージを追加。\\n" +' +
     '      "・v1.9.3: アカウント切り替え時のリダイレクトバグ（iframe内URL問題）を修正。\\n" +' +
     '      "・v1.9.2: 変更履歴ダイアログの更新。\\n" +' +
