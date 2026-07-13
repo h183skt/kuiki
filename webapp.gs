@@ -52,12 +52,13 @@ const WEBAPP = {
  * 訪問記録 読み取り
  * ============================================================ */
 
-function getVisitRecords(url, email) {
+function getVisitRecords(url) {
+  const email = Session.getActiveUser().getEmail();
   try {
     if (!isValidAccess_(email)) {
       return {
         ok: false,
-        error: 'このメールアドレスは登録されていません。管理者に登録をご依頼ください。'
+        error: 'このメールアドレス（' + (email || '不明') + '）は登録されていません。管理者に登録をご依頼ください。'
       };
     }
 
@@ -76,14 +77,9 @@ function getVisitRecords(url, email) {
       };
     }
 
-    // ドライブ権限（共有設定）をプログラム内で検証します
-    const checkEmail = email.trim().toLowerCase();
-    if (!hasPermissionToSheet_(ids.fileId, checkEmail)) {
-      return {
-        ok: false,
-        error: 'このマンションのシートに対する閲覧・編集権限がありません。Googleドライブ上であなたのアカウント（' + checkEmail + '）が共有されているか管理者に確認してください。'
-      };
-    }
+    // Google認証 (USER_ACCESSING) のため、hasPermissionToSheet_() による総当たりループは不要です。
+    // openSheetByUrl_() でスプレッドシートを開く際、権限がなければ自動でエラーが発生し、
+    // catch ブロックの friendlySheetAccessError_() で検知されて適切なメッセージになります。
 
     const sheet = openSheetByUrl_(url, 'read');
     if (!sheet) {
@@ -164,12 +160,12 @@ function getVisitRecords(url, email) {
 
 function saveVisitRecord(p) {
   p = p || {};
-  const email = p.email;
+  const email = Session.getActiveUser().getEmail();
   
   if (!isValidAccess_(email)) {
     return {
       ok: false,
-      error: 'このメールアドレスは登録されていません。管理者に登録をご依頼ください。'
+      error: 'このメールアドレス（' + (email || '不明') + '）は登録されていません。管理者に登録をご依頼ください。'
     };
   }
 
@@ -200,14 +196,8 @@ function saveVisitRecord(p) {
       };
     }
 
-    // ドライブ権限（共有設定）をプログラム内で検証します
-    const checkEmail = email.trim().toLowerCase();
-    if (!hasPermissionToSheet_(ids.fileId, checkEmail)) {
-      return {
-        ok: false,
-        error: 'このマンションのシートに対する編集権限がありません。Googleドライブ上であなたのアカウント（' + checkEmail + '）が共有されているか管理者に確認してください。'
-      };
-    }
+    // Google認証 (USER_ACCESSING) のため、hasPermissionToSheet_() は不要。
+    // openSheetByUrl_() でエラーが発生すれば catch ブロックで処理されます。
 
     const sheet = openSheetByUrl_(p.url, 'write');
     if (!sheet) {
@@ -379,32 +369,7 @@ function isValidAccess_(email) {
   return false;
 }
 
-function hasPermissionToSheet_(fileId, email) {
-  if (!email) return false;
-  try {
-    const file = DriveApp.getFileById(fileId);
-    
-    // オーナー確認
-    if (file.getOwner().getEmail().toLowerCase() === email) return true;
-    
-    // 編集者確認
-    const editors = file.getEditors();
-    for (let i = 0; i < editors.length; i++) {
-      if (editors[i].getEmail().toLowerCase() === email) return true;
-    }
-    
-    // 閲覧者確認
-    const viewers = file.getViewers();
-    for (let i = 0; i < viewers.length; i++) {
-      if (viewers[i].getEmail().toLowerCase() === email) return true;
-    }
-    
-    return false;
-  } catch (e) {
-    Logger.log('権限の確認に失敗しました（' + fileId + ', ' + email + '）: ' + e);
-    return false;
-  }
-}
+
 
 function friendlySheetAccessError_(e, mode) {
   const msg = String(e);
@@ -530,9 +495,10 @@ function doGet_() {
 /**
  * メールアドレスを検証し、許可された全マンションデータとユーザー情報を取得する
  */
-function getAppData(email) {
+function getAppData() {
+  const email = Session.getActiveUser().getEmail();
   if (!isValidAccess_(email)) {
-    return { ok: false, error: 'このメールアドレスは登録されていません。管理者に登録をご依頼ください。' };
+    return { ok: false, error: 'あなたのGoogleアカウント（' + (email || '不明') + '）は登録されていません。管理者に登録をご依頼ください。' };
   }
 
   try {
@@ -695,22 +661,12 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '    <img src="' + WEBAPP.ICON_URL + '" style="width:72px;height:72px;margin-bottom:16px;">' +
     '    <h2 style="font-size:18px;margin:0 0 4px;font-weight:700;color:var(--text);">区域訪問記録アプリ</h2>' +
     '    <div style="font-size:12px;color:var(--sub);margin-bottom:16px;">' + WEBAPP.VERSION + '</div>' +
-    '    <form onsubmit="return false;" style="width:100%;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;">' +
-    '      <input id="access-email-input" type="email" name="email" autocomplete="email" placeholder="Googleメールアドレスを入力" style="width:100%;font-size:16px;padding:12px;border:1px solid var(--line);border-radius:10px;margin-bottom:16px;text-align:center;background:var(--bg);color:var(--text);">' +
-    '    </form>' +
-    '    <button id="login-submit-btn" style="width:100%;font-size:16px;font-weight:700;padding:12px;border-radius:10px;border:0;background:var(--accent);color:#fff;cursor:pointer;">ログイン</button>' +
+    '    <div id="login-loading" style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:8px;">' +
+    '      <div class="spinner"></div>' +
+    '      <p style="font-size:14px;color:var(--sub);margin:0;font-weight:600;">Google認証を確認中…</p>' +
+    '    </div>' +
     '    <div id="login-error-msg" style="color:#d93025;font-size:13px;margin-top:12px;text-align:center;min-height:18px;font-weight:600;"></div>' +
     '  </div>' +
-    '  <script>' +
-    '    try {' +
-    '      let saved = localStorage.getItem("kuiki_access_email");' +
-    '      if (!saved) {' +
-    '        const m = document.cookie.match(/(?:^|; )kuiki_access_email=([^;]*)/);' +
-    '        if (m) saved = decodeURIComponent(m[1]);' +
-    '      }' +
-    '      if (saved) document.getElementById("access-email-input").value = saved;' +
-    '    } catch(e) {}' +
-    '  </script>' +
     '</div>' +
     '<header><div class="topbar"><h1>' + WEBAPP.TITLE + '</h1>' +
     '<span class="ver" id="btnVersion">' + WEBAPP.VERSION + '</span>' +
@@ -860,7 +816,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' const body=document.getElementById("recbody");body.innerHTML="<div class=\\"loading-wrap\\"><img src=\\""+APP_ICON+"\\" class=\\"loading-logo\\"><div class=\\"spinner\\"></div><p>訪問記録を読み込み中…</p></div>";' +
     ' if(!r.url){body.innerHTML="<p class=recnote>この建物にはシートのURLが設定されていません。</p>";return;}' +
     ' google.script.run.withSuccessHandler(res=>{curRec={r:r,data:res};renderRec();}).withFailureHandler(err=>{' +
-    '  body.innerHTML="<p class=recnote>"+esc(friendlyErr(err,false))+"</p>";}).getVisitRecords(r.url, USER_EMAIL);}' +
+    '  body.innerHTML="<p class=recnote>"+esc(friendlyErr(err,false))+"</p>";}).getVisitRecords(r.url);}' +
     'function closeRec(){closeEdit();document.getElementById("rec").style.display="none";curRec=null;}' +
     'function currentPeriodIndex(){return Math.floor(new Date().getMonth()/3);}' +
     'function renderRec(){const body=document.getElementById("recbody");const res=curRec.data;' +
@@ -917,81 +873,53 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '    closeEdit();openRec(curRec.r);}' +
     '   else{alert("保存に失敗しました: "+(res&&res.error?res.error:"不明なエラー"));}' +
     '  }).withFailureHandler(err=>{btn.disabled=false;btn.textContent="保存";alert(friendlyErr(err,true));})' +
-    '  .saveVisitRecord({url:curRec.r.url,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date,email:USER_EMAIL});}' +
+    '  .saveVisitRecord({url:curRec.r.url,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date});}' +
     'function safeReload(){const a=document.createElement("a");a.href=WEBAPP_URL;a.target="_top";document.body.appendChild(a);a.click();a.remove();}' +
     'function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
     'function friendlyErr(err,forWrite){const m=String(err);const p=m.indexOf("権限")!==-1||m.toLowerCase().indexOf("permission")!==-1||m.toLowerCase().indexOf("access")!==-1;return p?(forWrite?"権限がないため保存できませんでした。対象のスプレッドシートで編集権限があるか確認し、権限付与後にもう一度お試しください。":"権限がないため記録シートを開けませんでした。対象のスプレッドシートで閲覧権限があるか確認し、権限付与後にもう一度お試しください。"):m;}' +
     
     // ログイン処理と自動ログイン処理
-    'document.getElementById("login-submit-btn").onclick = () => {' +
-    '  const email = document.getElementById("access-email-input").value.trim();' +
-    '  if (!email) {' +
-    '    document.getElementById("login-error-msg").textContent = "メールアドレスを入力してください。";' +
-    '    return;' +
-    '  }' +
-    '  attemptLogin(email);' +
-    '};' +
-    'function attemptLogin(email) {' +
-    '  const btn = document.getElementById("login-submit-btn");' +
+    'function attemptLogin() {' +
     '  const errorEl = document.getElementById("login-error-msg");' +
-    '  btn.disabled = true; btn.textContent = "ログイン中…"; errorEl.textContent = "";' +
+    '  const loadingEl = document.getElementById("login-loading");' +
+    '  errorEl.textContent = "";' +
+    '  if(loadingEl) loadingEl.style.display = "flex";' +
     '  google.script.run.withSuccessHandler(res => {' +
-    '    btn.disabled = false; btn.textContent = "ログイン";' +
     '    if (res && res.ok) {' +
-    '      USER_EMAIL = email;' +
-    '      localStorage.setItem("kuiki_access_email", email);' +
-    '      setCookie("kuiki_access_email", email, 365);' +
+    '      USER_EMAIL = res.email;' +
     '      DATA = res.data;' +
     '      const emailEl = document.getElementById("user-email");' +
     '      if (emailEl) {' +
-    '        emailEl.innerHTML = "ログイン: <b>" + esc(res.name) + "</b> <a href=\\"#\\" onclick=\\"logout()\\" style=\\"color:var(--accent);margin-left:8px;text-decoration:none;\\">ログアウト</a>";' +
+    '        emailEl.innerHTML = "ログイン: <b>" + esc(res.name || res.email) + "</b> <a href=\\"#\\" onclick=\\"logout()\\" style=\\"color:var(--accent);margin-left:8px;text-decoration:none;\\">アカウント切替</a>";' +
     '      }' +
     '      document.getElementById("login-screen").style.display = "none";' +
     '      initApp();' +
     '    } else {' +
+    '      if(loadingEl) loadingEl.style.display = "none";' +
     '      const errMsg = res ? res.error : "ログインに失敗しました。";' +
     '      if (errMsg.indexOf("登録されていません") !== -1) {' +
+    '        const showEmail = (res && res.email) ? res.email : "（不明）";' +
     '        errorEl.innerHTML = "<div style=\\"border:1px solid #f5c2c7;background:#f8d7da;color:#842029;border-radius:10px;padding:12px;margin-top:8px;font-size:14.5px;line-height:1.6;font-weight:normal;text-align:left;\\">" +' +
-    '          "登録されていないか、入力が間違っています。<br>" +' +
-    '          "<b style=\\"color:#b02a37;font-size:15px;\\">この画面を区域の係にお見せください。</b><br><br>" +' +
-    '          "<div style=\\"background:#fff;border:1px solid #f5c2c7;border-radius:6px;padding:8px;text-align:center;font-size:17.5px;font-weight:800;text-decoration:underline;color:#202124;word-break:break-all;\\">" + esc(email) + "</div></div>";' +
+    '          "Googleアカウント（" + esc(showEmail) + "）は登録されていないか、設定が間違っています。<br>" +' +
+    '          "<b style=\\"color:#b02a37;font-size:15px;\\">この画面を区域の係にお見せください。</b></div>";' +
     '      } else {' +
     '        errorEl.textContent = errMsg;' +
     '      }' +
     '      document.getElementById("login-screen").style.display = "flex";' +
     '    }' +
     '  }).withFailureHandler(err => {' +
-    '    btn.disabled = false; btn.textContent = "ログイン";' +
+    '    if(loadingEl) loadingEl.style.display = "none";' +
     '    errorEl.textContent = "通信エラーが発生しました: " + err;' +
     '    document.getElementById("login-screen").style.display = "flex";' +
-    '  }).getAppData(email);' +
+    '  }).getAppData();' +
     '}' +
     'function logout() {' +
-    '  if (confirm("ログアウトしますか？")) {' +
-    '    localStorage.removeItem("kuiki_access_email");' +
-    '    setCookie("kuiki_access_email", "", -1);' +
-    '    sessionStorage.removeItem("st");' +
-    '    location.reload();' +
-    '  }' +
+    '  alert("Googleアカウントを切り替えるには、Googleアカウント自体からログアウトするか、ブラウザの別のアカウントプロファイルをご利用ください。");' +
     '}' +
     
-    'document.getElementById("access-email-input").addEventListener("keypress", e => {' +
-    '  if (e.key === "Enter" || e.keyCode === 13) {' +
-    '    document.getElementById("login-submit-btn").click();' +
-    '  }' +
-    '});' +
-    
-    // アプリ起動時の自動ログイン（URLパラメータ・Cookie・LocalStorage対応）
+    // アプリ起動時の自動ログイン
     'window.onload = () => {' +
-    '  const urlParams = new URLSearchParams(window.location.search);' +
-    '  const paramEmail = urlParams.get("email");' +
-    '  const savedEmail = paramEmail || localStorage.getItem("kuiki_access_email") || getCookie("kuiki_access_email");' +
-    '  if (savedEmail) {' +
-    '    document.getElementById("access-email-input").value = savedEmail;' +
-    '    attemptLogin(savedEmail);' +
-    '  } else {' +
-    '    document.getElementById("login-screen").style.display = "flex";' +
-    '  }' +
+    '  attemptLogin();' +
     '};' +
     
     'const btnUpdate=document.getElementById("btnUpdate");' +
