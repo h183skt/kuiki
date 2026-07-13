@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.9.3',
+  VERSION: 'v1.9.4',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -876,7 +876,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  .saveVisitRecord({url:curRec.r.url,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date});}' +
     'function safeReload(){const a=document.createElement("a");a.href=WEBAPP_URL;a.target="_top";document.body.appendChild(a);a.click();a.remove();}' +
     'function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
-    'function friendlyErr(err,forWrite){const m=String(err);const p=m.indexOf("権限")!==-1||m.toLowerCase().indexOf("permission")!==-1||m.toLowerCase().indexOf("access")!==-1;return p?(forWrite?"権限がないため保存できませんでした。対象のスプレッドシートで編集権限があるか確認し、権限付与後にもう一度お試しください。":"権限がないため記録シートを開けませんでした。対象のスプレッドシートで閲覧権限があるか確認し、権限付与後にもう一度お試しください。"):m;}' +
+    'function friendlyErr(err,forWrite){const m=String(err);const p=m.indexOf("権限")!==-1||m.toLowerCase().indexOf("permission")!==-1||m.toLowerCase().indexOf("access")!==-1;return p?(forWrite?"権限がないため保存できませんでした。スプレッドシートの編集権限が必要ですので、この画面を区域の係にお見せください。":"権限がないため記録シートを開けませんでした。スプレッドシートの閲覧権限が必要ですので、この画面を区域の係にお見せください。"):m;}' +
     'function attemptLogin() {' +
     '  const errorEl = document.getElementById("login-error-msg");' +
     '  const loadingEl = document.getElementById("login-loading");' +
@@ -963,6 +963,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notes=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.9.4: スプレッドシートの権限エラー発生時に、区域の係への問い合わせを促すメッセージを追加。\\n" +' +
     '      "・v1.9.3: アカウント切り替え時のリダイレクトバグ（iframe内URL問題）を修正。\\n" +' +
     '      "・v1.9.2: 変更履歴ダイアログの更新。\\n" +' +
     '      "・v1.9.1: アカウント切り替え機能（別のGoogleアカウントの選択やログアウト機能）を追加。\\n" +' +
