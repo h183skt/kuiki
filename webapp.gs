@@ -660,11 +660,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 4px 16px rgba(0,0,0,0.08);display:flex;flex-direction:column;align-items:center;">' +
     '    <img src="' + WEBAPP.ICON_URL + '" style="width:72px;height:72px;margin-bottom:16px;">' +
     '    <h2 style="font-size:18px;margin:0 0 4px;font-weight:700;color:var(--text);">区域訪問記録アプリ</h2>' +
-    '    <div style="font-size:12px;color:var(--sub);margin-bottom:20px;">' + WEBAPP.VERSION + '</div>' +
-    '    <button id="login-start-btn" onclick="attemptLogin()" style="width:100%;font-size:16px;font-weight:700;padding:14px;border-radius:10px;border:0;background:var(--accent);color:#fff;cursor:pointer;box-shadow:0 2px 6px rgba(26,115,232,0.3);display:flex;align-items:center;justify-content:center;">' +
-    '      Googleアカウントでログイン' +
-    '    </button>' +
-    '    <div id="login-loading" style="display:none;flex-direction:column;align-items:center;gap:12px;margin-top:8px;">' +
+    '    <div style="font-size:12px;color:var(--sub);margin-bottom:16px;">' + WEBAPP.VERSION + '</div>' +
+    '    <div id="login-loading" style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:8px;">' +
     '      <div class="spinner"></div>' +
     '      <p style="font-size:14px;color:var(--sub);margin:0;font-weight:600;">Google認証を確認中…</p>' +
     '    </div>' +
@@ -880,14 +877,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'function safeReload(){const a=document.createElement("a");a.href=WEBAPP_URL;a.target="_top";document.body.appendChild(a);a.click();a.remove();}' +
     'function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
     'function friendlyErr(err,forWrite){const m=String(err);const p=m.indexOf("権限")!==-1||m.toLowerCase().indexOf("permission")!==-1||m.toLowerCase().indexOf("access")!==-1;return p?(forWrite?"権限がないため保存できませんでした。対象のスプレッドシートで編集権限があるか確認し、権限付与後にもう一度お試しください。":"権限がないため記録シートを開けませんでした。対象のスプレッドシートで閲覧権限があるか確認し、権限付与後にもう一度お試しください。"):m;}' +
-    
-    // ログイン処理と自動ログイン処理
     'function attemptLogin() {' +
     '  const errorEl = document.getElementById("login-error-msg");' +
     '  const loadingEl = document.getElementById("login-loading");' +
-    '  const btnEl = document.getElementById("login-start-btn");' +
     '  errorEl.textContent = "";' +
-    '  if(btnEl) btnEl.style.display = "none";' +
     '  if(loadingEl) loadingEl.style.display = "flex";' +
     '  google.script.run.withSuccessHandler(res => {' +
     '    if (res && res.ok) {' +
@@ -900,7 +893,6 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '      document.getElementById("login-screen").style.display = "none";' +
     '      initApp();' +
     '    } else {' +
-    '      if(btnEl) btnEl.style.display = "flex";' +
     '      if(loadingEl) loadingEl.style.display = "none";' +
     '      const errMsg = res ? res.error : "ログインに失敗しました。";' +
     '      if (errMsg.indexOf("登録されていません") !== -1) {' +
@@ -916,7 +908,6 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '      document.getElementById("login-screen").style.display = "flex";' +
     '    }' +
     '  }).withFailureHandler(err => {' +
-    '    if(btnEl) btnEl.style.display = "flex";' +
     '    if(loadingEl) loadingEl.style.display = "none";' +
     '    errorEl.textContent = "通信エラーが発生しました: " + err;' +
     '    document.getElementById("login-screen").style.display = "flex";' +
@@ -926,9 +917,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  alert("Googleアカウントを切り替えるには、Googleアカウント自体からログアウトするか、ブラウザの別のアカウントプロファイルをご利用ください。");' +
     '}' +
     
-    // アプリ起動時はボタンクリックを待つため、自動ログインは行いません。
+    // アプリ起動時の自動ログイン
     'window.onload = () => {' +
-    '  document.getElementById("login-screen").style.display = "flex";' +
+    '  attemptLogin();' +
     '};' +
     
     'const btnUpdate=document.getElementById("btnUpdate");' +
