@@ -1,237 +1,66 @@
 /**
- * 区域マンション一覧 ウェブアプリ（webapp.gs v1.5.2 デプロイ設定の自動同期と不具合修正）
- * - 「保存」でセル（結果）とその真下（日付）に書き込みます。
- * - B列（最終訪問日）は保護されている可能性があるため更新しません。
- * v4.1からの追加点:
- * ・統合シートJ列に登録されているシートURL以外は、読み取り・保存できないようにしました。
- * ・保存時に、結果・行・列の検証を追加しました。
- * ・今日の日付をクライアント側でも仮生成し、サーバー取得前でも日付が入るようにしました。
- *
- * 更新手順:
- * 1. webapp ファイルの中身をこのコードで丸ごと置き換えて保存
- * 2. 「デプロイ > デプロイを管理 > 鉛筆 > 新バージョン」で更新
+ * 区域訪問記録ウェブアプリ - サーバー側スクリプト
+ * 
+ * Googleログインなし（シークレットウィンドウやiPhone）でも動作するようにしつつ、
+ * 個別マンションシートの個人情報アクセス制限（Googleドライブ共有設定）を維持するため、
+ * 「登録されたGoogleメールアドレスの入力」による認証方式（v1.8.0）を採用しています。
+ * 入力されたメールアドレスが「キー管理」シートに登録されている場合のみログインを許可します。
  */
 
+// 設定項目
 const WEBAPP = {
-  SHEET_NAME: '統合',
-  COL_AREA: 1,
-  COL_MAP: 2,
-  COL_NAME: 3,
-  COL_TYPE: 4,
-  COL_ADDR: 5,
-  COL_URL: 10,
-
-  TITLE: '区域マンション一覧',
-  VERSION: 'v1.5.2',
-  OPEN_IN_APP: false,
-  CACHE_SHEET: '座標キャッシュ',
+  TITLE: '区域訪問記録マップ',
+  VERSION: 'v1.8.7',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
-
-  TYPE_COLORS: {
-    '単身': '#1a73e8',
-    '世帯': '#d93025',
-    '混在': '#f9ab00'
-  },
+  SHEET_NAME: '統合',
+  CACHE_SHEET: '座標キャッシュ',
   DEFAULT_COLOR: '#5f6368',
 
+  // 建物種別によるマーカーカラー
+  TYPE_COLORS: {
+    '単身': '#1a73e8',  // 青
+    '世帯': '#d93025',  // 赤
+    '混在': '#f9ab00',  // オレンジ
+    'その他': '#9aa0a6'  // グレー
+  },
+
+  // 訪問結果のステータス定義
+  REC_RESULTS: ['会えた', '留守', '空室', '投函のみ', '予約'],
+  REC_PERIODS: ['1〜3月', '4〜6月', '7〜9月', '10〜12月'],
+
+  // カラム番号定義（1から開始）
+  COL_AREA: 1,  // A列: エリア
+  COL_MAP: 2,   // B列: Map
+  COL_NAME: 3,  // C列: マンション名
+  COL_TYPE: 4,  // D列: 住居形態
+  COL_ADDR: 5,  // E列: 住所
+  COL_MEMO: 6,  // F列: 備考
+  COL_ID: 7,    // G列: ID
+  COL_STATE: 8, // H列: 拒否
+  COL_CELL: 9,  // I列: シート
+  COL_URL: 10,  // J列: URL
+
+  // 訪問記録シート内の座標・パーサー設定
   REC_DATA_START_ROW: 6,
   REC_ROOM_COL: 1,
   REC_PREV_COL: 2,
   REC_FIRST_VISIT_COL: 3,
-  REC_VISIT_COLS: 12,
-  REC_RESULTS: ['会えた', '留守', '空室', '投函のみ', '予約'],
-  REC_PERIODS: ['1〜3月', '4〜6月', '7〜9月', '10〜12月'],
+  REC_VISIT_COLS: 12
 };
-
-/* ============================================================
- * ジオコーディング（手動実行・進捗表示付き）
- * ============================================================ */
-
-function geocodeAddresses() {
-  const START = Date.now();
-  const TIME_LIMIT_MS = 5 * 60 * 1000;
-  const CHUNK = 25;
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getSheetByName(WEBAPP.SHEET_NAME);
-  if (!sh) throw new Error('シート「' + WEBAPP.SHEET_NAME + '」が見つかりません。');
-
-  let cache = ss.getSheetByName(WEBAPP.CACHE_SHEET);
-  if (!cache) {
-    cache = ss.insertSheet(WEBAPP.CACHE_SHEET);
-    cache.getRange(1, 1, 1, 4).setValues([['住所', '緯度', '経度', '状態']]);
-  }
-
-  const known = {};
-  const cLast = cache.getLastRow();
-  if (cLast >= 2) {
-    cache.getRange(2, 1, cLast - 1, 1).getDisplayValues().forEach(row => {
-      known[row[0]] = true;
-    });
-  }
-
-  const lastRow = sh.getLastRow();
-  if (lastRow < 2) {
-    ss.toast('統合シートにデータがありません。', '座標取得', 8);
-    return;
-  }
-
-  const addrs = sh.getRange(2, WEBAPP.COL_ADDR, lastRow - 1, 1).getDisplayValues();
-  const targets = [];
-  const seen = {};
-
-  addrs.forEach(row => {
-    const a = row[0];
-    if (a && !known[a] && !seen[a]) {
-      seen[a] = true;
-      targets.push(a);
-    }
-  });
-
-  if (targets.length === 0) {
-    ss.toast('新しい住所はありません。キャッシュは最新です。', '座標取得', 8);
-    return;
-  }
-
-  const total = targets.length;
-  ss.toast('0 / ' + total + ' 件　開始します…', '座標取得中', -1);
-
-  const geocoder = Maps.newGeocoder().setLanguage('ja').setRegion('jp');
-  let buffer = [];
-  let done = 0;
-  let ok = 0;
-  let ng = 0;
-  let stoppedEarly = false;
-
-  for (let i = 0; i < total; i++) {
-    if (Date.now() - START > TIME_LIMIT_MS) {
-      stoppedEarly = true;
-      break;
-    }
-
-    const addr = targets[i];
-    let lat = '';
-    let lng = '';
-    let status = 'NG';
-
-    try {
-      const res = geocoder.geocode(normAddr_(addr));
-      if (res.status === 'OK' && res.results.length > 0) {
-        const loc = res.results[0].geometry.location;
-        lat = loc.lat;
-        lng = loc.lng;
-        status = 'OK';
-        ok++;
-      } else {
-        ng++;
-      }
-    } catch (e) {
-      ng++;
-    }
-
-    buffer.push([addr, lat, lng, status]);
-    done++;
-
-    if (buffer.length >= CHUNK) {
-      flushCache_(cache, buffer);
-      buffer = [];
-      const pct = Math.round(done / total * 100);
-      ss.toast(done + ' / ' + total + ' 件（' + pct + '%）　成功 ' + ok + ' / 失敗 ' + ng, '座標取得中', -1);
-    }
-
-    Utilities.sleep(100);
-  }
-
-  if (buffer.length > 0) flushCache_(cache, buffer);
-
-  if (stoppedEarly) {
-    const remain = total - done;
-    ss.toast(
-      '時間制限のため途中保存して中断しました（処理済 ' + done + ' / 残り ' + remain + ' 件）。もう一度実行すると続きから処理します。',
-      '座標取得 一時中断',
-      -1
-    );
-  } else {
-    ss.toast(
-      '完了: 成功 ' + ok + ' 件 / 失敗 ' + ng + ' 件' + (ng > 0 ? '（失敗分は座標キャッシュの状態=NG行）' : ''),
-      '座標取得 完了',
-      -1
-    );
-  }
-}
-
-function flushCache_(cache, buffer) {
-  cache.getRange(cache.getLastRow() + 1, 1, buffer.length, 4).setValues(buffer);
-  SpreadsheetApp.flush();
-}
-
-function normAddr_(s) {
-  return String(s)
-    .replace(/[０-９]/g, d => String.fromCharCode(d.charCodeAt(0) - 0xFEE0))
-    .replace(/[−ー―‐－]/g, '-')
-    .replace(/\s+/g, '');
-}
-
-
-function cleanErrorMessage_(e) {
-  return String((e && e.message) ? e.message : e || '')
-    .replace(/^(Exception|Error):\s*/, '')
-    .trim();
-}
-
-function isPermissionErrorMessage_(message) {
-  const text = String(message || '');
-  const lower = text.toLowerCase();
-
-  return lower.indexOf('permission') !== -1 ||
-    lower.indexOf('access denied') !== -1 ||
-    lower.indexOf('not have permission') !== -1 ||
-    lower.indexOf('insufficient permissions') !== -1 ||
-    text.indexOf('権限') !== -1 ||
-    text.indexOf('アクセスが拒否') !== -1;
-}
-
-function friendlySheetAccessError_(e, purpose) {
-  const message = cleanErrorMessage_(e);
-
-  if (isPermissionErrorMessage_(message)) {
-    return purpose === 'write'
-      ? '権限がないため保存できませんでした。対象のスプレッドシートで編集権限があるか確認し、権限付与後にもう一度お試しください。'
-      : '権限がないため記録シートを開けませんでした。対象のスプレッドシートで閲覧権限があるか確認し、権限付与後にもう一度お試しください。';
-  }
-
-  return message || '不明なエラーが発生しました。';
-}
-
-function runMasterUpdate() {
-  const lock = LockService.getDocumentLock();
-  try {
-    lock.waitLock(30000);
-  } catch (e) {
-    return { ok: false, error: '他の処理が実行中です。少し待ってから再度お試しください。' };
-  }
-
-  try {
-    mergeAreaSheets();
-    geocodeAddresses();
-    return { ok: true, message: 'マスターデータの更新が正常に完了しました。' };
-  } catch (e) {
-    return { ok: false, error: cleanErrorMessage_(e) };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function getWebappUrl() {
-  return ScriptApp.getService().getUrl();
-}
 
 /* ============================================================
  * 訪問記録 読み取り
  * ============================================================ */
 
-function getVisitRecords(url) {
+function getVisitRecords(url, email) {
   try {
+    if (!isValidAccess_(email)) {
+      return {
+        ok: false,
+        error: 'このメールアドレスは登録されていません。管理者に登録をご依頼ください。'
+      };
+    }
+
     if (!isAllowedSheetUrl_(url)) {
       return {
         ok: false,
@@ -239,11 +68,28 @@ function getVisitRecords(url) {
       };
     }
 
+    const ids = parseSheetUrl_(url);
+    if (!ids) {
+      return {
+        ok: false,
+        error: 'URLからシートを特定できませんでした。'
+      };
+    }
+
+    // ドライブ権限（共有設定）をプログラム内で検証します
+    const checkEmail = email.trim().toLowerCase();
+    if (!hasPermissionToSheet_(ids.fileId, checkEmail)) {
+      return {
+        ok: false,
+        error: 'このマンションのシートに対する閲覧・編集権限がありません。Googleドライブ上であなたのアカウント（' + checkEmail + '）が共有されているか管理者に確認してください。'
+      };
+    }
+
     const sheet = openSheetByUrl_(url, 'read');
     if (!sheet) {
       return {
         ok: false,
-        error: 'URLからシートを特定できませんでした。'
+        error: '指定されたスプレッドシートを開けませんでした。URLが正しいかご確認ください。'
       };
     }
 
@@ -267,6 +113,7 @@ function getVisitRecords(url) {
 
     const rooms = [];
 
+    // 2行ずつループを回して 部屋・前回の記録・訪問セルを取得
     for (let i = 0; i < disp.length; i += 2) {
       const topRow = disp[i];
       const botRow = (i + 1 < disp.length) ? disp[i + 1] : [];
@@ -302,6 +149,7 @@ function getVisitRecords(url) {
       periods: WEBAPP.REC_PERIODS,
       results: WEBAPP.REC_RESULTS
     };
+
   } catch (e) {
     return {
       ok: false,
@@ -316,6 +164,14 @@ function getVisitRecords(url) {
 
 function saveVisitRecord(p) {
   p = p || {};
+  const email = p.email;
+  
+  if (!isValidAccess_(email)) {
+    return {
+      ok: false,
+      error: 'このメールアドレスは登録されていません。管理者に登録をご依頼ください。'
+    };
+  }
 
   const lock = LockService.getDocumentLock();
 
@@ -336,11 +192,28 @@ function saveVisitRecord(p) {
       };
     }
 
+    const ids = parseSheetUrl_(p.url);
+    if (!ids) {
+      return {
+        ok: false,
+        error: 'URLからシートを特定できませんでした。'
+      };
+    }
+
+    // ドライブ権限（共有設定）をプログラム内で検証します
+    const checkEmail = email.trim().toLowerCase();
+    if (!hasPermissionToSheet_(ids.fileId, checkEmail)) {
+      return {
+        ok: false,
+        error: 'このマンションのシートに対する編集権限がありません。Googleドライブ上であなたのアカウント（' + checkEmail + '）が共有されているか管理者に確認してください。'
+      };
+    }
+
     const sheet = openSheetByUrl_(p.url, 'write');
     if (!sheet) {
       return {
         ok: false,
-        error: 'URLからシートを特定できませんでした。'
+        error: '指定されたスプレッドシートを開けませんでした。URLが正しいかご確認ください。'
       };
     }
 
@@ -406,7 +279,6 @@ function saveVisitRecord(p) {
 
     if (curResult !== expR || curDate !== expD) {
       return {
-        ok: false,
         conflict: true,
         current: {
           result: curResult,
@@ -415,20 +287,18 @@ function saveVisitRecord(p) {
       };
     }
 
-sheet.getRange(resultRow, col).setValue(newResult);
-sheet.getRange(dateRow, col).setNumberFormat('@').setValue(newDate);
+    sheet.getRange(resultRow, col).setValue(newResult);
+    sheet.getRange(dateRow, col).setNumberFormat('@').setValue(newDate);
 
-// B列（最終訪問日）は保護されている可能性があるため、Webアプリからは更新しません。
+    SpreadsheetApp.flush();
 
-SpreadsheetApp.flush();
-
-return {
-  ok: true,
-  saved: {
-    result: newResult,
-    date: newDate
-  }
-};
+    return {
+      ok: true,
+      saved: {
+        result: newResult,
+        date: newDate
+      }
+    };
   } catch (e) {
     return {
       ok: false,
@@ -465,41 +335,124 @@ function getTodayLabel() {
 }
 
 /* ============================================================
- * 共通: URL安全チェック・URLからシートを開く
+ * アクセスキー認証とスプレッドシート権限チェック
  * ============================================================ */
 
-function sheetKeyFromUrl_(url) {
-  const ids = parseSheetUrl_(url);
-  if (!ids) return '';
-  return ids.fileId + ':' + String(ids.gid || '');
-}
-
-function getAllowedSheetKeys_() {
+function ensureKeyManagementSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getSheetByName(WEBAPP.SHEET_NAME);
-
-  const allowed = {};
-  if (!sh) return allowed;
-
-  const lastRow = sh.getLastRow();
-  if (lastRow < 2) return allowed;
-
-  const urls = sh.getRange(2, WEBAPP.COL_URL, lastRow - 1, 1).getDisplayValues();
-
-  urls.forEach(row => {
-    const key = sheetKeyFromUrl_(row[0]);
-    if (key) allowed[key] = true;
-  });
-
-  return allowed;
+  let sh = ss.getSheetByName('キー管理');
+  
+  if (!sh) {
+    sh = ss.insertSheet('キー管理');
+    sh.getRange(1, 1, 1, 2).setValues([['許可するメールアドレス', '備考']]);
+    sh.getRange(2, 1, 1, 2).setValues([['admin@example.com', 'デモメンバー']]);
+    sh.getRange(3, 1, 1, 2).setValues([['jw.noborito@gmail.com', '登戸会衆']]);
+    SpreadsheetApp.flush();
+  } else {
+    // 既存のシートがある場合、ヘッダーが古い構成（有効なアクセスキー）のままであれば補正する
+    const headerVal = String(sh.getRange(1, 1).getValue()).trim();
+    if (headerVal === '有効なアクセスキー') {
+      sh.getRange(1, 1).setValue('許可するメールアドレス');
+      SpreadsheetApp.flush();
+    }
+  }
+  return sh;
 }
+
+function isValidAccess_(email) {
+  if (!email) return false;
+  const checkEmail = email.trim().toLowerCase();
+  
+  const sh = ensureKeyManagementSheet_();
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return false;
+  
+  // A列（許可するメールアドレス）をチェック
+  const values = sh.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let i = 0; i < values.length; i++) {
+    const rowEmail = String(values[i][0]).trim().toLowerCase();
+    
+    if (rowEmail === checkEmail && checkEmail !== '') {
+      return true;
+    }
+  }
+  return false;
+}
+
+function hasPermissionToSheet_(fileId, email) {
+  if (!email) return false;
+  try {
+    const file = DriveApp.getFileById(fileId);
+    
+    // オーナー確認
+    if (file.getOwner().getEmail().toLowerCase() === email) return true;
+    
+    // 編集者確認
+    const editors = file.getEditors();
+    for (let i = 0; i < editors.length; i++) {
+      if (editors[i].getEmail().toLowerCase() === email) return true;
+    }
+    
+    // 閲覧者確認
+    const viewers = file.getViewers();
+    for (let i = 0; i < viewers.length; i++) {
+      if (viewers[i].getEmail().toLowerCase() === email) return true;
+    }
+    
+    return false;
+  } catch (e) {
+    Logger.log('権限の確認に失敗しました（' + fileId + ', ' + email + '）: ' + e);
+    return false;
+  }
+}
+
+function friendlySheetAccessError_(e, mode) {
+  const msg = String(e);
+  if (msg.indexOf('権限') !== -1 || msg.toLowerCase().indexOf('permission') !== -1 || msg.toLowerCase().indexOf('access') !== -1) {
+    return '個別スプレッドシートの閲覧・編集権限がありません。Googleドライブ上でアクセス権が共有されているか管理者に確認してください。';
+  }
+  return (mode === 'read' ? '読み込み' : '保存') + '中にエラーが発生しました: ' + cleanErrorMessage_(e);
+}
+
+/* ============================================================
+ * 内部ユーティリティ & データベース
+ * ============================================================ */
 
 function isAllowedSheetUrl_(url) {
-  const key = sheetKeyFromUrl_(url);
+  if (!url) return false;
+  const key = parseSheetUrl_(url);
   if (!key) return false;
 
   const allowed = getAllowedSheetKeys_();
-  return allowed[key] === true;
+  return allowed[key.fileId] === true;
+}
+
+function getAllowedSheetKeys_() {
+  const cacheKey = 'allowed_sheet_keys_v3';
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get(cacheKey);
+
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(WEBAPP.SHEET_NAME);
+  const result = {};
+
+  if (sh && sh.getLastRow() >= 2) {
+    const urls = sh.getRange(2, WEBAPP.COL_URL, sh.getLastRow() - 1, 1).getValues();
+    for (let i = 0; i < urls.length; i++) {
+      const u = String(urls[i][0]).trim();
+      const ids = parseSheetUrl_(u);
+      if (ids) {
+        result[ids.fileId] = true;
+      }
+    }
+  }
+
+  cache.put(cacheKey, JSON.stringify(result), 1800); // 30分キャッシュ
+  return result;
 }
 
 function openSheetByUrl_(url, purpose) {
@@ -544,10 +497,7 @@ function doGet() {
     return doGet_();
   } catch (e) {
     const msg = cleanErrorMessage_(e);
-    const isPermission = isPermissionErrorMessage_(msg);
-    const body = isPermission
-      ? 'このページを表示する権限がありません。スプレッドシートの閲覧権限があるアカウントでアクセスしてください。'
-      : ('エラーが発生しました: ' + msg);
+    const body = 'エラーが発生しました: ' + msg;
     return HtmlService.createHtmlOutput(
       '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
@@ -559,62 +509,86 @@ function doGet() {
 }
 
 function doGet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getSheetByName(WEBAPP.SHEET_NAME);
-
-  if (!sh) {
-    return HtmlService.createHtmlOutput('シート「' + WEBAPP.SHEET_NAME + '」が見つかりません。');
+  try {
+    ensureKeyManagementSheet_();
+  } catch (e) {
+    Logger.log('キー管理シートの自動生成に失敗しました: ' + e);
   }
 
-  const coords = {};
-  const cache = ss.getSheetByName(WEBAPP.CACHE_SHEET);
-
-  if (cache && cache.getLastRow() >= 2) {
-    cache.getRange(2, 1, cache.getLastRow() - 1, 4).getValues().forEach(r => {
-      if (r[3] === 'OK') {
-        coords[r[0]] = [Number(r[1]), Number(r[2])];
-      }
-    });
-  }
-
-  const lastRow = sh.getLastRow();
-  const rows = [];
-
-  if (lastRow >= 2) {
-    const numRows = lastRow - 1;
-    const display = sh.getRange(2, 1, numRows, WEBAPP.COL_URL).getDisplayValues();
-    const formulas = sh.getRange(2, 1, numRows, WEBAPP.COL_URL).getFormulas();
-
-    for (let r = 0; r < numRows; r++) {
-      const name = display[r][WEBAPP.COL_NAME - 1];
-      if (!name) continue;
-
-      const addr = display[r][WEBAPP.COL_ADDR - 1];
-      const c = coords[addr] || null;
-
-      rows.push({
-        area: display[r][WEBAPP.COL_AREA - 1],
-        name: name,
-        type: display[r][WEBAPP.COL_TYPE - 1],
-        addr: addr,
-        url: display[r][WEBAPP.COL_URL - 1],
-        map: urlFromFormula_(formulas[r][WEBAPP.COL_MAP - 1]),
-        lat: c ? c[0] : null,
-        lng: c ? c[1] : null,
-      });
-    }
-  }
-
-  const dataJson = JSON.stringify(rows).replace(/</g, '\\u003c');
   const colorsJson = JSON.stringify(WEBAPP.TYPE_COLORS);
   const resultsJson = JSON.stringify(WEBAPP.REC_RESULTS);
   const webappUrl = ScriptApp.getService().getUrl();
 
-  const userEmail = Session.getActiveUser().getEmail() || '';
-  return HtmlService.createHtmlOutput(buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail))
+  // 初期読み込みではマンションデータを含めず空の配列を渡します。
+  // クライアント側でメールアドレス入力後に getAppData を使って非同期ロードします。
+  return HtmlService.createHtmlOutput(buildHtml_('[]', colorsJson, resultsJson, webappUrl, ''))
     .setTitle(WEBAPP.TITLE)
     .setFaviconUrl(WEBAPP.ICON_URL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+/**
+ * メールアドレスを検証し、許可された全マンションデータとユーザー情報を取得する
+ */
+function getAppData(email) {
+  if (!isValidAccess_(email)) {
+    return { ok: false, error: 'このメールアドレスは登録されていません。管理者に登録をご依頼ください。' };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sh = ss.getSheetByName(WEBAPP.SHEET_NAME);
+    if (!sh) {
+      return { ok: false, error: 'シート「' + WEBAPP.SHEET_NAME + '」が見つかりません。' };
+    }
+
+    const coords = {};
+    const cache = ss.getSheetByName(WEBAPP.CACHE_SHEET);
+    if (cache && cache.getLastRow() >= 2) {
+      cache.getRange(2, 1, cache.getLastRow() - 1, 4).getValues().forEach(r => {
+        if (r[3] === 'OK') {
+          coords[r[0]] = [Number(r[1]), Number(r[2])];
+        }
+      });
+    }
+
+    const lastRow = sh.getLastRow();
+    const rows = [];
+
+    if (lastRow >= 2) {
+      const numRows = lastRow - 1;
+      const display = sh.getRange(2, 1, numRows, WEBAPP.COL_URL).getDisplayValues();
+      const formulas = sh.getRange(2, 1, numRows, WEBAPP.COL_URL).getFormulas();
+
+      for (let r = 0; r < numRows; r++) {
+        const name = display[r][WEBAPP.COL_NAME - 1];
+        if (!name) continue;
+
+        const addr = display[r][WEBAPP.COL_ADDR - 1];
+        const c = coords[addr] || null;
+
+        rows.push({
+          area: display[r][WEBAPP.COL_AREA - 1],
+          name: name,
+          type: display[r][WEBAPP.COL_TYPE - 1],
+          addr: addr,
+          url: display[r][WEBAPP.COL_URL - 1],
+          map: urlFromFormula_(formulas[r][WEBAPP.COL_MAP - 1]),
+          lat: c ? c[0] : null,
+          lng: c ? c[1] : null,
+        });
+      }
+    }
+
+    return {
+      ok: true,
+      data: rows,
+      name: email.trim(),
+      email: email.trim().toLowerCase()
+    };
+  } catch (e) {
+    return { ok: false, error: 'データの読み込みに失敗しました: ' + cleanErrorMessage_(e) };
+  }
 }
 
 function urlFromFormula_(formula) {
@@ -668,20 +642,22 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '@keyframes spin{to{transform:rotate(360deg);}}' +
     '.rectable{width:100%;border-collapse:collapse;margin-top:4px;font-size:13px;border:1px solid var(--line);}' +
     '.pop .dirrow{display:flex;gap:5px;margin-top:7px;}' +
-    '.pop .dirlink{flex:1;text-align:center;font-size:12px;font-weight:600;background:var(--green);color:#fff;border-radius:8px;padding:5px 4px;text-decoration:none;white-space:nowrap;}' +
-    '.pop .recbtn{display:block;text-align:center;margin-top:5px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;border-radius:8px;padding:5px;cursor:pointer;}' +
+    '.pop .dirlink{flex:1;text-align:center;font-size:13px;font-weight:700;background:var(--green);color:#fff;border-radius:8px;padding:10px 4px;text-decoration:none;white-space:nowrap;}' +
+    '.pop .actionrow{display:flex;gap:5px;margin-top:6px;}' +
+    '.pop .recbtn{flex:2;text-align:center;font-size:13px;font-weight:700;background:var(--accent);color:#fff;border-radius:8px;padding:10px;cursor:pointer;white-space:nowrap;}' +
+    '.pop .closebtn{flex:1;text-align:center;font-size:13px;font-weight:700;background:var(--sub);color:#fff;border-radius:8px;padding:10px;cursor:pointer;white-space:nowrap;}' +
     '.pop .pbadge{display:inline-block;font-size:11px;background:#e8f0fe;color:var(--accent);border-radius:5px;padding:0 6px;font-weight:600;margin-bottom:3px;}' +
     '.me-wrap{position:relative;width:36px;height:40px;}' +
     '.me-pulse{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:rgba(52,168,83,.9);animation:mepulse 1.6s ease-out infinite;}' +
     '@keyframes mepulse{0%{box-shadow:0 0 0 0 rgba(52,168,83,.6);}100%{box-shadow:0 0 0 22px rgba(52,168,83,0);}}' +
     '.me-emoji{position:absolute;left:50%;bottom:0;transform:translateX(-50%);font-size:34px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));}' +
     '.empty{text-align:center;color:var(--sub);padding:40px 0;}' +
-    '#rec{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:2000;display:none;}' +
-    '#recinner{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;}' +
-    '#rechead{background:var(--card);border-bottom:1px solid var(--line);padding:10px 12px;display:flex;align-items:center;gap:10px;}' +
-    '#rechead h2{font-size:16px;margin:0;flex:1;}' +
+    '#rec{position:fixed;inset:0;background:var(--card);z-index:2000;display:none;}' +
+    '#recinner{position:absolute;inset:0;background:var(--card);padding:12px 0 0 0;display:flex;flex-direction:column;max-height:100vh;}' +
+    '#rechead{display:flex;align-items:center;margin-bottom:8px;padding:0 12px;}' +
+    '#rectitle{font-size:17px;font-weight:800;color:var(--accent);margin:0;flex:1;}' +
     '#recclose{font-size:14px;font-weight:600;color:var(--accent);background:none;border:1px solid var(--accent);border-radius:8px;padding:6px 12px;}' +
-    '#recbody{flex:1;overflow:auto;padding:10px;}' +
+    '#recbody{flex:1;overflow:auto;padding:0 0 20px 0;}' +
     '.rectable th,.rectable td{border:1px solid var(--line);padding:4px 6px;text-align:center;}' +
     '.rectable thead th{background:#0b8043;color:#fff;position:sticky;top:0;z-index:2;}' +
     '.rectable thead th.curp{background:var(--accent);}' +
@@ -714,6 +690,28 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.btnrow button{flex:1;font-size:15px;font-weight:700;padding:12px;border-radius:10px;border:0;}' +
     '#save{background:var(--accent);color:#fff;}' +
     '</style></head><body>' +
+    '<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">' +
+    '  <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 4px 16px rgba(0,0,0,0.08);display:flex;flex-direction:column;align-items:center;">' +
+    '    <img src="' + WEBAPP.ICON_URL + '" style="width:72px;height:72px;margin-bottom:16px;">' +
+    '    <h2 style="font-size:18px;margin:0 0 4px;font-weight:700;color:var(--text);">区域訪問記録アプリ</h2>' +
+    '    <div style="font-size:12px;color:var(--sub);margin-bottom:16px;">' + WEBAPP.VERSION + '</div>' +
+    '    <form onsubmit="return false;" style="width:100%;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;">' +
+    '      <input id="access-email-input" type="email" name="email" autocomplete="email" placeholder="Googleメールアドレスを入力" style="width:100%;font-size:16px;padding:12px;border:1px solid var(--line);border-radius:10px;margin-bottom:16px;text-align:center;background:var(--bg);color:var(--text);">' +
+    '    </form>' +
+    '    <button id="login-submit-btn" style="width:100%;font-size:16px;font-weight:700;padding:12px;border-radius:10px;border:0;background:var(--accent);color:#fff;cursor:pointer;">ログイン</button>' +
+    '    <div id="login-error-msg" style="color:#d93025;font-size:13px;margin-top:12px;text-align:center;min-height:18px;font-weight:600;"></div>' +
+    '  </div>' +
+    '  <script>' +
+    '    try {' +
+    '      let saved = localStorage.getItem("kuiki_access_email");' +
+    '      if (!saved) {' +
+    '        const m = document.cookie.match(/(?:^|; )kuiki_access_email=([^;]*)/);' +
+    '        if (m) saved = decodeURIComponent(m[1]);' +
+    '      }' +
+    '      if (saved) document.getElementById("access-email-input").value = saved;' +
+    '    } catch(e) {}' +
+    '  </script>' +
+    '</div>' +
     '<header><div class="topbar"><h1>' + WEBAPP.TITLE + '</h1>' +
     '<span class="ver" id="btnVersion">' + WEBAPP.VERSION + '</span>' +
     '<button id="btnUpdate" style="display:none;font-size:11px;color:var(--accent);background:var(--card);border:1px solid var(--accent);border-radius:999px;padding:2px 8px;margin-right:4px;white-space:nowrap;cursor:pointer;">マスター更新</button>' +
@@ -730,14 +728,15 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '<div class="btnrow"><button id="save">保存</button></div>' +
     '</div></div>' +
     '<script>' +
-    'const DATA=' + dataJson + ';' +
+    'function setCookie(n,v,d){const dt=new Date();dt.setTime(dt.getTime()+(d*24*60*60*1000));const ex="expires="+dt.toUTCString();document.cookie=n+"="+encodeURIComponent(v)+";"+ex+";path=/;SameSite=Lax";}' +
+    'function getCookie(n){const nm=n+"=";const dec=decodeURIComponent(document.cookie);const ca=dec.split(";");for(let i=0;i<ca.length;i++){let c=ca[i];while(c.charAt(0)==" ")c=c.substring(1);if(c.indexOf(nm)==0)return c.substring(nm.length,c.length);}return "";}' +
+    'let DATA=[];' +
     'const COLORS=' + colorsJson + ';' +
     'const RESULTS=' + resultsJson + ';' +
     'const APP_ICON="' + WEBAPP.ICON_URL + '";' +
     'const WEBAPP_URL="' + webappUrl + '";' +
     'const DEFC="' + WEBAPP.DEFAULT_COLOR + '";' +
-    'const USER_EMAIL="' + userEmail + '";' +
-    'const emailEl=document.getElementById("user-email");if(emailEl&&USER_EMAIL){emailEl.textContent="ログイン: "+USER_EMAIL;}' +
+    'let USER_EMAIL="";' +
     'const STANDALONE=(navigator.standalone===true)||window.matchMedia("(display-mode: standalone)").matches;' +
     'let curArea="";let curQ="";let mode="map";let map=null;let layer=null;' +
     'let watchId=null;let meMarker=null;let meCircle=null;let lastPos=null;let firstFix=true;' +
@@ -754,10 +753,15 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'function saveState(){try{sessionStorage.setItem("st",JSON.stringify({a:curArea,q:curQ,m:mode,v:savedView}));}catch(e){}}' +
     'let initMode="map";' +
     'try{const st=JSON.parse(sessionStorage.getItem("st")||"{}");curArea=st.a||"";curQ=st.q||"";if(st.v)savedView=st.v;}catch(e){}' +
-    'const areas=[...new Set(DATA.map(r=>r.area))];' +
     'const areaBox=document.getElementById("areas");' +
-    'function chip(label,val){const b=document.createElement("button");b.textContent=label;b.dataset.val=val;b.onclick=()=>{curArea=val;render();};areaBox.appendChild(b);}' +
-    'chip("すべて","");areas.forEach(a=>chip(a.replace(/エリア$/,""),a));' +
+    'function initApp() {' +
+    '  areaBox.innerHTML="";' +
+    '  const areas=[...new Set(DATA.map(r=>r.area))];' +
+    '  function chip(label,val){const b=document.createElement("button");b.textContent=label;b.dataset.val=val;b.onclick=()=>{curArea=val;render();};areaBox.appendChild(b);}' +
+    '  chip("すべて","");areas.forEach(a=>chip(a.replace(/エリア$/,""),a));' +
+    '  document.getElementById("q").value=curQ;' +
+    '  setMode(mode||initMode);' +
+    '}' +
     'document.getElementById("q").addEventListener("input",e=>{' +
     '  curQ=e.target.value.trim();' +
     '  const btn=document.getElementById("btnUpdate");' +
@@ -831,21 +835,24 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '   "<a class=dirlink href=\\""+dirBase+"bicycling\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\udeb2 自転車</a>"+' +
     '   "<a class=dirlink href=\\""+dirBase+"driving\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\ude97 車</a></div>";' +
     '  let popHtml="<div class=pop>";const handlers=[];' +
-    '  if(!isMulti){const r=first;const popId="rb_"+Math.random().toString(36).slice(2);handlers.push({id:popId,r:r});' +
+    '  if(!isMulti){const r=first;const popId="rb_"+Math.random().toString(36).slice(2);const closeId="cb_"+Math.random().toString(36).slice(2);handlers.push({id:popId,closeId:closeId,r:r});' +
     '   popHtml+=(r.type?"<span class=pbadge>"+esc(r.type)+"</span><br>":"")+' +
     '    "<div class=pname>"+esc(r.name)+"</div><div class=paddr>"+esc(r.addr)+"</div>"+dirBtns+' +
-    '    "<div class=recbtn id="+popId+">訪問記録を開く</div>";' +
+    '    "<div class=actionrow><div class=recbtn id="+popId+">訪問記録を開く</div><div class=closebtn id="+closeId+">閉じる</div></div>";' +
     '  }else{' +
     '   popHtml+="<div class=paddr style=\\"font-weight:bold;margin-bottom:5px;\\">"+esc(first.addr)+"</div>"+dirBtns;' +
-    '   items.forEach(r=>{const popId="rb_"+Math.random().toString(36).slice(2);handlers.push({id:popId,r:r});' +
+    '   items.forEach(r=>{const popId="rb_"+Math.random().toString(36).slice(2);const closeId="cb_"+Math.random().toString(36).slice(2);handlers.push({id:popId,closeId:closeId,r:r});' +
     '    popHtml+="<div style=\\"margin-top:8px;border-top:1px solid var(--line);padding-top:8px;\\">"+' +
     '     (r.type?"<span class=pbadge style=\\"background:"+(COLORS[r.type]||DEFC)+";color:#fff;\\">"+esc(r.type)+"</span> ":"")+' +
     '     "<span class=pname style=\\"font-size:14px;\\">"+esc(r.name)+"</span>"+' +
-    '     "<div class=recbtn id="+popId+" style=\\"margin-top:4px;\\">訪問記録を開く</div></div>";});' +
+    '     "<div class=actionrow><div class=recbtn id="+popId+">訪問記録を開く</div><div class=closebtn id="+closeId+">閉じる</div></div></div>";});' +
     '  }' +
     '  popHtml+="</div>";' +
     '  mk.bindPopup(popHtml);' +
-    '  mk.on("popupopen",()=>{handlers.forEach(h=>{const el=document.getElementById(h.id);if(el)el.onclick=()=>openRec(h.r);});});' +
+    '  mk.on("popupopen",()=>{handlers.forEach(h=>{' +
+    '    const el=document.getElementById(h.id);if(el)el.onclick=()=>openRec(h.r);' +
+    '    const cel=document.getElementById(h.closeId);if(cel)cel.onclick=()=>map.closePopup();' +
+    '  });});' +
     '  mk.addTo(layer);});' +
     ' if(pts.length>0&&watchId===null&&!savedView)map.fitBounds(pts,{padding:[30,30],maxZoom:17});}' +
     'function openRec(r){curSheetIndex=0;const m=document.getElementById("rec");m.style.display="block";' +
@@ -853,7 +860,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' const body=document.getElementById("recbody");body.innerHTML="<div class=\\"loading-wrap\\"><img src=\\""+APP_ICON+"\\" class=\\"loading-logo\\"><div class=\\"spinner\\"></div><p>訪問記録を読み込み中…</p></div>";' +
     ' if(!r.url){body.innerHTML="<p class=recnote>この建物にはシートのURLが設定されていません。</p>";return;}' +
     ' google.script.run.withSuccessHandler(res=>{curRec={r:r,data:res};renderRec();}).withFailureHandler(err=>{' +
-    '  body.innerHTML="<p class=recnote>"+esc(friendlyErr(err,false))+"</p>";}).getVisitRecords(r.url);}' +
+    '  body.innerHTML="<p class=recnote>"+esc(friendlyErr(err,false))+"</p>";}).getVisitRecords(r.url, USER_EMAIL);}' +
     'function closeRec(){closeEdit();document.getElementById("rec").style.display="none";curRec=null;}' +
     'function currentPeriodIndex(){return Math.floor(new Date().getMonth()/3);}' +
     'function renderRec(){const body=document.getElementById("recbody");const res=curRec.data;' +
@@ -910,14 +917,85 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '    closeEdit();openRec(curRec.r);}' +
     '   else{alert("保存に失敗しました: "+(res&&res.error?res.error:"不明なエラー"));}' +
     '  }).withFailureHandler(err=>{btn.disabled=false;btn.textContent="保存";alert(friendlyErr(err,true));})' +
-    '  .saveVisitRecord({url:curRec.r.url,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date});}' +
+    '  .saveVisitRecord({url:curRec.r.url,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date,email:USER_EMAIL});}' +
     'function safeReload(){const a=document.createElement("a");a.href=WEBAPP_URL;a.target="_top";document.body.appendChild(a);a.click();a.remove();}' +
     'function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
     'function friendlyErr(err,forWrite){const m=String(err);const p=m.indexOf("権限")!==-1||m.toLowerCase().indexOf("permission")!==-1||m.toLowerCase().indexOf("access")!==-1;return p?(forWrite?"権限がないため保存できませんでした。対象のスプレッドシートで編集権限があるか確認し、権限付与後にもう一度お試しください。":"権限がないため記録シートを開けませんでした。対象のスプレッドシートで閲覧権限があるか確認し、権限付与後にもう一度お試しください。"):m;}' +
-    'document.getElementById("q").value=curQ;' +
+    
+    // ログイン処理と自動ログイン処理
+    'document.getElementById("login-submit-btn").onclick = () => {' +
+    '  const email = document.getElementById("access-email-input").value.trim();' +
+    '  if (!email) {' +
+    '    document.getElementById("login-error-msg").textContent = "メールアドレスを入力してください。";' +
+    '    return;' +
+    '  }' +
+    '  attemptLogin(email);' +
+    '};' +
+    'function attemptLogin(email) {' +
+    '  const btn = document.getElementById("login-submit-btn");' +
+    '  const errorEl = document.getElementById("login-error-msg");' +
+    '  btn.disabled = true; btn.textContent = "ログイン中…"; errorEl.textContent = "";' +
+    '  google.script.run.withSuccessHandler(res => {' +
+    '    btn.disabled = false; btn.textContent = "ログイン";' +
+    '    if (res && res.ok) {' +
+    '      USER_EMAIL = email;' +
+    '      localStorage.setItem("kuiki_access_email", email);' +
+    '      setCookie("kuiki_access_email", email, 365);' +
+    '      DATA = res.data;' +
+    '      const emailEl = document.getElementById("user-email");' +
+    '      if (emailEl) {' +
+    '        emailEl.innerHTML = "ログイン: <b>" + esc(res.name) + "</b> <a href=\\"#\\" onclick=\\"logout()\\" style=\\"color:var(--accent);margin-left:8px;text-decoration:none;\\">ログアウト</a>";' +
+    '      }' +
+    '      document.getElementById("login-screen").style.display = "none";' +
+    '      initApp();' +
+    '    } else {' +
+    '      const errMsg = res ? res.error : "ログインに失敗しました。";' +
+    '      if (errMsg.indexOf("登録されていません") !== -1) {' +
+    '        errorEl.innerHTML = "<div style=\\"border:1px solid #f5c2c7;background:#f8d7da;color:#842029;border-radius:10px;padding:12px;margin-top:8px;font-size:14.5px;line-height:1.6;font-weight:normal;text-align:left;\\">" +' +
+    '          "登録されていないか、入力が間違っています。<br>" +' +
+    '          "<b style=\\"color:#b02a37;font-size:15px;\\">この画面を区域の係にお見せください。</b><br><br>" +' +
+    '          "<div style=\\"background:#fff;border:1px solid #f5c2c7;border-radius:6px;padding:8px;text-align:center;font-size:17.5px;font-weight:800;text-decoration:underline;color:#202124;word-break:break-all;\\">" + esc(email) + "</div></div>";' +
+    '      } else {' +
+    '        errorEl.textContent = errMsg;' +
+    '      }' +
+    '      document.getElementById("login-screen").style.display = "flex";' +
+    '    }' +
+    '  }).withFailureHandler(err => {' +
+    '    btn.disabled = false; btn.textContent = "ログイン";' +
+    '    errorEl.textContent = "通信エラーが発生しました: " + err;' +
+    '    document.getElementById("login-screen").style.display = "flex";' +
+    '  }).getAppData(email);' +
+    '}' +
+    'function logout() {' +
+    '  if (confirm("ログアウトしますか？")) {' +
+    '    localStorage.removeItem("kuiki_access_email");' +
+    '    setCookie("kuiki_access_email", "", -1);' +
+    '    sessionStorage.removeItem("st");' +
+    '    location.reload();' +
+    '  }' +
+    '}' +
+    
+    'document.getElementById("access-email-input").addEventListener("keypress", e => {' +
+    '  if (e.key === "Enter" || e.keyCode === 13) {' +
+    '    document.getElementById("login-submit-btn").click();' +
+    '  }' +
+    '});' +
+    
+    // アプリ起動時の自動ログイン（URLパラメータ・Cookie・LocalStorage対応）
+    'window.onload = () => {' +
+    '  const urlParams = new URLSearchParams(window.location.search);' +
+    '  const paramEmail = urlParams.get("email");' +
+    '  const savedEmail = paramEmail || localStorage.getItem("kuiki_access_email") || getCookie("kuiki_access_email");' +
+    '  if (savedEmail) {' +
+    '    document.getElementById("access-email-input").value = savedEmail;' +
+    '    attemptLogin(savedEmail);' +
+    '  } else {' +
+    '    document.getElementById("login-screen").style.display = "flex";' +
+    '  }' +
+    '};' +
+    
     'const btnUpdate=document.getElementById("btnUpdate");' +
     'if(btnUpdate){' +
-    '  if(curQ==="管理者")btnUpdate.style.display="";' +
     '  btnUpdate.onclick=()=>{' +
     '    if(!confirm("各スプレッドシートからマンションデータを再読み込みし、マスターファイルを更新しますか？\\n（完了まで少し時間がかかります）"))return;' +
     '    const origText=btnUpdate.textContent;' +
@@ -941,20 +1019,21 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notes=' +
     '      "【最近の更新内容】\\n" +' +
-    '      "・v1.5.2: claspデプロイ設定の自動同期（実行権限をアクセスユーザーに固定）\\n" +' +
-    '      "・v1.5.1: ログインユーザーのメールアドレスを表示する機能を追加\\n" +' +
-    '      "・v1.5.0: セキュリティ強化（アクセスしたユーザー自身の権限でスプレッドシートを開くよう変更）\\n" +' +
-    '      "・v1.4.4: バージョンクリック時に最近の更新内容を表示する機能を追加\\n" +' +
-    '      "・v1.4.3: 期間終了後の過去セルの背景色を濃いグレーに調整\\n" +' +
-    '      "・v1.4.2: 訪問記録の読込時のロゴアイコンサイズを3倍に拡大\\n" +' +
-    '      "・v1.4.1: 同一住所 of 複数建物があるピンの枠線・サイズを統一\\n" +' +
-    '      "・v1.4.0: 同一座標のピンのグループ化と選択ポップアップ実装\\n\\n" +' +
+    '      "・v1.8.7: 未登録メールアドレス入力時のエラー表示を改善。連絡先（係）への提示を促す親切なエラーメッセージに変更。\\n" +' +
+    '      "・v1.8.6: LocalStorageが機能しない環境に備え、Cookieによる二重保存・自動ログインに対応。\\n" +' +
+    '      "・v1.8.5: 起動時のログイン画面での前回アドレスの即時自動入力（プリフィル）と、オートフィル属性・Enterキーログインに対応。\\n" +' +
+    '      "・v1.8.4: ピンポップアップ内の各ボタンの縦幅（パディング）を広げ、年配の方でも誤タップしにくい大きなサイズに改善。\\n" +' +
+    '      "・v1.8.3: マップ上のピンポップアップに「閉じる」ボタンを追加し、訪問記録を開くボタンと並べて配置。\\n" +' +
+    '      "・v1.8.2: 起動時のログイン画面にバージョン番号を表示。訪問記録の部屋（号室）列を画面左端に隙間なく固定。\\n" +' +
+    '      "・v1.8.1: 訪問記録の読込中ロゴを本来のドアとピンのアイコンに復元。訪問記録ポップアップの全画面表示・不透過化（最大化）を適用。\\n" +' +
+    '      "・v1.8.0: 共通アクセスキーを廃止し、メールアドレスのみでログインできるように改修（1箇所入力化）。管理シートもメールアドレスのみのシンプルな構成に変更。\\n" +' +
+    '      "・v1.7.3: URLパラメータによる自動ログイン（key, email）に対応。\\n" +' +
+    '      "・v1.7.2: 訪問記録シートの読み込み・保存の動作不具合（ヘッダーエラー）を修正し、本来の1部屋2行パーサーに復元。世帯ピンの色（赤）を復元。\\n\\n" +' +
     '      "アプリを再起動（最新状態へ更新）しますか？";' +
     '    if(confirm(notes)){' +
     '      safeReload();' +
     '    }' +
     '  };' +
     '}' +
-    'setMode(initMode);' +
     '</script></body></html>';
 }
