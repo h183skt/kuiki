@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.9.6',
+  VERSION: 'v1.9.7',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -676,7 +676,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '<div id="areas"></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;"><div id="count" style="margin:0;"></div><span id="user-email" style="font-size:11px;color:var(--sub);padding-right:2px;"></span></div></header>' +
     '<main id="list"></main>' +
     '<div id="mapwrap"><div id="map"></div><button id="locate">現在地</button></div>' +
-    '<div id="rec"><div id="recinner"><div id="rechead"><div style="flex:1;min-width:0;"><h2 id="rectitle" style="font-size:16px;font-weight:800;color:var(--accent);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">訪問記録</h2><div id="rec-datetime" style="font-size:11.5px;color:var(--sub);margin-top:2px;font-weight:600;"></div></div><button id="recclose">閉じる</button></div><div id="recbody"></div></div></div>' +
+    '<div id="rec"><div id="recinner"><div id="rechead"><div style="flex:1;min-width:0;"><h2 id="rectitle" style="font-size:14px;font-weight:600;color:var(--sub);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">訪問記録</h2><div id="rec-datetime" style="font-size:19px;color:var(--accent);margin-top:3px;font-weight:800;letter-spacing:-0.5px;"></div></div><button id="recclose">閉じる</button></div><div id="recbody"></div></div></div>' +
     '<div id="edit"><div id="editbox">' +
     '<div class="edithead"><p id="edittitle">記録</p><button id="editclose" aria-label="閉じる">×</button></div>' +
     '<div class="resrow" id="resrow"></div>' +
@@ -699,6 +699,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'let savedView=null;' +
     'let curRec=null;' +
     'let curEdit=null;' +
+    'let recTimer=null;' +
     'function pad2(n){return String(n).padStart(2,"0");}' +
     'function localTodayLabel(){const d=new Date();const w=["日","月","火","水","木","金","土"][d.getDay()];return (d.getMonth()+1)+"/"+d.getDate()+" ("+w+")";}' +
     'function localTodayIso(){const d=new Date();return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());}' +
@@ -813,10 +814,11 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' if(pts.length>0&&watchId===null&&!savedView)map.fitBounds(pts,{padding:[30,30],maxZoom:17});}' +
     'function openRec(r){curSheetIndex=0;const m=document.getElementById("rec");m.style.display="block";' +
     ' document.getElementById("rectitle").textContent=r.name;' +
-    ' const dtEl=document.getElementById("rec-datetime");if(dtEl){' +
+    ' if(recTimer)clearInterval(recTimer);' +
+    ' const tick=()=>{const dtEl=document.getElementById("rec-datetime");if(dtEl){' +
     '  const d=new Date();const w=["日","月","火","水","木","金","土"][d.getDay()];' +
-    '  dtEl.textContent="現在時刻: "+(d.getMonth()+1)+"/"+d.getDate()+" ("+w+") "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");' +
-    ' }' +
+    '  dtEl.textContent=(d.getMonth()+1)+"/"+d.getDate()+" ("+w+") "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+":"+String(d.getSeconds()).padStart(2,"0");' +
+    ' }};tick();recTimer=setInterval(tick,1000);' +
     ' const body=document.getElementById("recbody");body.innerHTML="<div class=\\"loading-wrap\\"><img src=\\""+APP_ICON+"\\" class=\\"loading-logo\\"><div class=\\"spinner\\"></div><p>訪問記録を読み込み中…</p></div>";' +
     ' if(!r.url){body.innerHTML="<p class=recnote>この建物にはシートのURLが設定されていません。</p>";return;}' +
     ' google.script.run.withSuccessHandler(res=>{curRec={r:r,data:res};renderRec();}).withFailureHandler(err=>{' +
@@ -827,7 +829,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '      "<div style=\\"background:#fff;border:1px solid #f5c2c7;border-radius:6px;padding:8px;text-align:center;font-size:16px;font-weight:800;text-decoration:underline;color:#202124;word-break:break-all;margin-top:8px;\\">" + esc(USER_EMAIL) + "</div></div>";' +
     '  }' +
     '  html+="</div>";body.innerHTML=html;}).getVisitRecords(r.url);}' +
-    'function closeRec(){closeEdit();document.getElementById("rec").style.display="none";curRec=null;}' +
+    'function closeRec(){closeEdit();document.getElementById("rec").style.display="none";curRec=null;if(recTimer){clearInterval(recTimer);recTimer=null;}}' +
     'function currentPeriodIndex(){return Math.floor(new Date().getMonth()/3);}' +
     'function renderRec(){const body=document.getElementById("recbody");const res=curRec.data;' +
     ' if(!res||!res.ok){body.innerHTML="<p class=recnote>読み込みに失敗しました: "+esc(res&&res.error?res.error:"不明なエラー")+"</p>";return;}' +
@@ -973,6 +975,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notes=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.9.7: マンションページの現在日時表示を大きく（マンション名より大きく）し、秒までリアルタイム更新する機能を追加。\\n" +' +
     '      "・v1.9.6: マンションページ上部に現在日時（曜日付き）および現在時刻を表示する機能を追加。\\n" +' +
     '      "・v1.9.5: 閲覧・編集権限エラー発生時に、現在ログイン中のアカウントアドレスを大きく表示する機能を追加。\\n" +' +
     '      "・v1.9.4: スプレッドシートの権限エラー発生時に、区域の係への問い合わせを促すメッセージを追加。\\n" +' +
