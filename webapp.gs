@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.9.2',
+  VERSION: 'v1.9.3',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -917,10 +917,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  const ok = confirm("アカウントを切り替えますか？\\n\\n[OK]：別のGoogleアカウントに切り替える\\n[キャンセル]：Googleアカウントから完全にログアウトする");' +
     '  let targetUrl = "";' +
     '  if (ok) {' +
-    '    targetUrl = "https://accounts.google.com/AccountChooser?continue=" + encodeURIComponent(location.href);' +
+    '    targetUrl = "https://accounts.google.com/AccountChooser?continue=" + encodeURIComponent(WEBAPP_URL);' +
     '  } else {' +
     '    if (confirm("Googleアカウントから完全にログアウトしますか？\\n（Gmailやスプレッドシートなど他のGoogleサービスからも一時的にログアウトされます）")) {' +
-    '      targetUrl = "https://accounts.google.com/Logout?continue=" + encodeURIComponent(location.href);' +
+    '      targetUrl = "https://accounts.google.com/Logout?continue=" + encodeURIComponent(WEBAPP_URL);' +
     '    }' +
     '  }' +
     '  if (targetUrl) {' +
@@ -963,6 +963,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notes=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.9.3: アカウント切り替え時のリダイレクトバグ（iframe内URL問題）を修正。\\n" +' +
     '      "・v1.9.2: 変更履歴ダイアログの更新。\\n" +' +
     '      "・v1.9.1: アカウント切り替え機能（別のGoogleアカウントの選択やログアウト機能）を追加。\\n" +' +
     '      "・v1.9.0: スプレッドシートのバージョン履歴に編集者を残すため、Google認証（ユーザー実行）方式へ移行。\\n" +' +
