@@ -498,7 +498,7 @@ function doGet_() {
 function getAppData() {
   const email = Session.getActiveUser().getEmail();
   if (!isValidAccess_(email)) {
-    return { ok: false, error: 'あなたのGoogleアカウント（' + (email || '不明') + '）は登録されていません。管理者に登録をご依頼ください。' };
+    return { ok: false, email: email, error: 'あなたのGoogleアカウント（' + (email || '不明') + '）は登録されていません。管理者に登録をご依頼ください。' };
   }
 
   try {
