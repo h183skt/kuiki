@@ -238,3 +238,12 @@ function setupDailyTrigger() {
 }
 
 // 自動デプロイテスト用コメント
+
+function runMasterUpdate() {
+  try {
+    mergeAreaSheets();
+    return { ok: true, message: 'マスターデータの更新が完了しました。' };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
