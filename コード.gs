@@ -248,3 +248,38 @@ function runMasterUpdate() {
     return { ok: false, error: String(e) };
   }
 }
+
+/**
+ * ご利用スタートガイドのHTMLファイルを、マスタースプレッドシートと同じGoogleドライブのフォルダに作成します。
+ * 実行すると、実行ログに共有URLが出力されます。
+ */
+function createManualInDrive() {
+  try {
+    const htmlContent = HtmlService.createHtmlOutputFromFile('release-notes-v1.10.0').getContent();
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      Logger.log('エラー: このスクリプトはスプレッドシートにバインドされていません。');
+      return;
+    }
+    const file = DriveApp.getFileById(ss.getId());
+    const parents = file.getParents();
+    const folder = parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
+    
+    const fileName = 'ご利用スタートガイド_v1.10.0.html';
+    
+    // 同名ファイルがあればゴミ箱へ
+    const existingFiles = folder.getFilesByName(fileName);
+    while (existingFiles.hasNext()) {
+      existingFiles.next().setTrashed(true);
+    }
+    
+    const newFile = folder.createFile(fileName, htmlContent, MimeType.HTML);
+    newFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    
+    Logger.log('HTMLファイルを作成しました！');
+    Logger.log('フォルダ: ' + folder.getName());
+    Logger.log('共有URL: ' + newFile.getUrl());
+  } catch (e) {
+    Logger.log('作成に失敗しました: ' + e);
+  }
+}

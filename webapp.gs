@@ -457,15 +457,11 @@ function parseSheetUrl_(url) {
  * ウェブアプリ本体
  * ============================================================ */
 
-function doGet(e) {
+function doGet() {
   try {
-    if (e && e.parameter && e.parameter.guide) {
-      return HtmlService.createHtmlOutputFromFile('release-notes-v1.10.0')
-        .setTitle('ご利用スタートガイド');
-    }
     return doGet_();
-  } catch (error) {
-    const msg = cleanErrorMessage_(error);
+  } catch (e) {
+    const msg = cleanErrorMessage_(e);
     const body = 'エラーが発生しました: ' + msg;
     return HtmlService.createHtmlOutput(
       '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">' +
