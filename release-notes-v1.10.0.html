@@ -291,6 +291,24 @@
       color: var(--text-muted);
     }
 
+    /* ヒント・お役立ちカード */
+    .tip-box {
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 24px 0;
+      display: flex;
+      gap: 12px;
+      font-size: 13.5px;
+      color: #5d4037;
+    }
+
+    .tip-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
     /* フッター */
     footer {
       background: #fafafa;
@@ -363,7 +381,7 @@
 
     <div class="content">
       <p class="intro-text">
-        本アプリは、割り当てられた区域の訪問結果を、スマートフォンやパソコンから地図（マップ）を通じて直感的に確認・記録できる専用ツールです。
+        本アプリは, 割り当てられた区域の訪問結果を、スマートフォンやパソコンから地図（マップ）を通じて直感的に確認・記録できる専用ツールです。
       </p>
 
       <!-- アプリの位置づけについて -->
@@ -473,6 +491,31 @@
       <div class="notice-box" style="background:#e8f0fe; border-color:#d1e3fa; color:#185abc; margin-bottom: 0;">
         <strong>✨ 設定お疲れさまでした！</strong>
         この設定は「最初の1回目のみ」必要です。次回以降はこれらの警告は表示されず、URLを開くだけですぐにアプリが起動します。
+      </div>
+
+      <!-- お役立ちヒント -->
+      <div class="section-title">お役立ち機能・使いやすくするコツ</div>
+
+      <!-- コツ 1: ホーム画面への登録 -->
+      <div class="tip-box" style="background: #e6f4ea; border-color: #ceead6; color: #137333; margin: 0 0 20px 0;">
+        <span class="tip-icon">📱</span>
+        <div>
+          <strong>スマホの「ホーム画面」に登録して便利に使う：</strong><br>
+          アプリを開いた後、スマートフォンの機能でホーム画面にアイコンを追加することをお勧めします。次回から、本物のアプリのようにワンタップで直接地図を開けるようになります。
+          <ul style="margin-top: 8px; margin-left: 16px; font-size: 12.5px; line-height: 1.6;">
+            <li><strong>iPhone (Safari) の場合</strong>: 画面下の「共有ボタン（四角から上矢印 📤）」をタップ ＞ <strong>「ホーム画面に追加」</strong>を選択します。</li>
+            <li><strong>Android (Chrome) の場合</strong>: 画面右上のメニュー（縦の3点リーダー）をタップ ＞ <strong>「ホーム画面に追加」</strong>を選択します。</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- コツ 2: 現在地ジャンプ -->
+      <div class="tip-box" style="margin: 0;">
+        <span class="tip-icon">💡</span>
+        <div>
+          <strong>現在地ジャンプボタン：</strong><br>
+          地図画面上の右下付近にある丸い「現在地ボタン」をタップすると、現在地の位置に瞬時にジャンプでき、現場での確認に便利です。
+        </div>
       </div>
     </div>
 
