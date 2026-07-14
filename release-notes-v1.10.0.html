@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>区域訪問記録アプリ v1.10.0 リリースノート</title>
+  <!-- Google Fonts から Inter と 独自の日本語フォント（Noto Sans JP）を読み込み -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #1a73e8;
+      --primary-light: #e8f0fe;
+      --accent: #d93025;
+      --text-dark: #202124;
+      --text-muted: #5f6368;
+      --bg-gradient: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
+      --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+      --border-radius: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background-color: #f6f9fc;
+      color: var(--text-dark);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: var(--border-radius);
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.03);
+    }
+
+    /* ヘッダーデザイン */
+    header {
+      background: var(--bg-gradient);
+      color: #ffffff;
+      padding: 48px 32px;
+      text-align: center;
+      position: relative;
+    }
+
+    .logo-container {
+      background: rgba(255, 255, 255, 0.15);
+      width: 80px;
+      height: 80px;
+      border-radius: 24px;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+    }
+
+    .logo-container:hover {
+      transform: scale(1.05) rotate(5deg);
+    }
+
+    /* ドアとピンのSVGアイコン */
+    .app-icon {
+      width: 48px;
+      height: 48px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 900;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .version-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      padding: 6px 16px;
+      border-radius: 100px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      backdrop-filter: blur(4px);
+    }
+
+    /* メインコンテンツ */
+    .content {
+      padding: 40px 32px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 18px;
+      background: var(--primary);
+      border-radius: 2px;
+    }
+
+    /* 変更内容のカード */
+    .card {
+      background: #fafbfe;
+      border: 1px solid #e8f0fe;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 32px;
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(26, 115, 232, 0.05);
+    }
+
+    .update-highlight {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--text-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .update-desc {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .update-reason {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px dashed #d1e3fa;
+      font-size: 14px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-info {
+      color: var(--primary);
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    /* 最近の変更履歴リスト */
+    .history-list {
+      list-style: none;
+      margin-bottom: 32px;
+    }
+
+    .history-item {
+      padding: 16px 0;
+      border-bottom: 1px solid #f1f3f4;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .history-item:last-child {
+      border-bottom: none;
+    }
+
+    .history-version {
+      font-weight: 700;
+      color: var(--text-dark);
+      background: #f1f3f4;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .history-text {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    /* フッター案内 */
+    footer {
+      background: #fafafa;
+      padding: 32px;
+      border-top: 1px solid #f1f3f4;
+      text-align: center;
+    }
+
+    .footer-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text-dark);
+    }
+
+    .footer-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .btn-action {
+      display: inline-block;
+      background: var(--primary);
+      color: #ffffff;
+      text-decoration: none;
+      padding: 12px 32px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 15px;
+      transition: background 0.2s ease, transform 0.2s ease;
+      box-shadow: 0 4px 12px rgba(26, 115, 232, 0.2);
+    }
+
+    .btn-action:hover {
+      background: #1557b0;
+      transform: translateY(-1px);
+    }
+
+    .btn-action:active {
+      transform: translateY(1px);
+    }
+
+    /* アニメーション用の微調整 */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .container {
+      animation: fadeIn 0.5s ease-out;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div class="logo-container">
+        <!-- ドアとピンをあしらったSVGロゴ -->
+        <svg class="app-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- ドアの枠 -->
+          <rect x="18" y="10" width="28" height="44" rx="4" stroke="#ffffff" stroke-width="4" fill="rgba(255,255,255,0.1)"/>
+          <!-- ドアの開き部分 -->
+          <path d="M18 10V54L41 48V16L18 10Z" fill="#ffffff" stroke="#ffffff" stroke-width="2"/>
+          <!-- ドアノブ -->
+          <circle cx="36" cy="32" r="2.5" fill="#1a73e8"/>
+          <!-- ピン（マップピン） -->
+          <path d="M46 22C46 16.4772 41.5228 12 36 12C30.4772 12 26 16.4772 26 22C26 29 36 40 36 40C36 40 46 29 46 22Z" fill="#d93025" stroke="#ffffff" stroke-width="2"/>
+          <circle cx="36" cy="22" r="4.5" fill="#ffffff"/>
+        </svg>
+      </div>
+      <h1>区域訪問記録アプリ</h1>
+      <span class="version-badge">Version v1.10.0 リリース</span>
+    </header>
+
+    <div class="content">
+      <div class="section-title">主なアップデート内容</div>
+      
+      <div class="card">
+        <div class="update-highlight">🚪 アカウント切替リンクを非表示に変更</div>
+        <div class="update-desc">
+          ログイン画面およびマップ画面上に配置されていた「アカウント切替」リンクを、一時的に非表示といたしました。
+        </div>
+        <div class="update-reason">
+          <span class="icon-info">ℹ️</span>
+          <div>
+            一般利用における誤タップや、意図しないログアウト操作を防ぐための調整となります。通常のご利用でアカウントを切り替える必要がないユーザーの方々へ、よりシンプルで使いやすい操作環境を提供します。
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">最近の改善履歴</div>
+      <ul class="history-list">
+        <li class="history-item">
+          <span class="history-version">v1.9.8</span>
+          <span class="history-text">マンションページの「マンション名」のフォントサイズを「現在日時」と同等の大きさに拡大し、視認性を向上させました。</span>
+        </li>
+        <li class="history-item">
+          <span class="history-version">v1.9.7</span>
+          <span class="history-text">マンションページ上部の日時表示を大きくし、秒単位でリアルタイム更新する機能を追加しました。</span>
+        </li>
+        <li class="history-item">
+          <span class="history-version">v1.9.6</span>
+          <span class="history-text">マンションページ上部に現在日時（曜日付き）および現在時刻を表示する機能を追加しました。</span>
+        </li>
+        <li class="history-item">
+          <span class="history-version">v1.9.5</span>
+          <span class="history-text">閲覧・編集権限エラー発生時に、現在ログイン中のアカウントアドレスを大きく表示する機能を追加しました。</span>
+        </li>
+      </ul>
+    </div>
+
+    <footer>
+      <div class="footer-title">アプリの利用について</div>
+      <p class="footer-desc">アプリにログインできない場合や、データの不具合がある場合は、区域の担当係まで直接お気軽にご連絡ください。</p>
+      <a href="https://script.google.com/macros/s/AKfycbxQKsGq8yR5BYEP9g7F3xgpXJHd--UwZOCQ6gPtYKUBuDoq-DLB27_-b_EAA9TWAZm_hA/exec" class="btn-action" target="_blank">アプリを起動する</a>
+    </footer>
+  </div>
+
+</body>
+</html>
