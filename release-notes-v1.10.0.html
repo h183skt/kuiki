@@ -156,7 +156,7 @@
       margin-bottom: 6px;
     }
 
-    /* ステップデザイン */
+    /* 設定ステップデザイン */
     .step-card {
       position: relative;
       background: #ffffff;
@@ -190,7 +190,6 @@
       justify-content: center;
     }
 
-    /* 初回設定用ステップデザインの装飾 */
     .setup-steps .step-card {
       border-left: 4px solid var(--warning);
     }
@@ -237,49 +236,59 @@
       font-weight: 700;
     }
 
-    /* 建物種別凡例 */
-    .color-legend {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-      margin-top: 12px;
-      background: #fafafa;
-      padding: 16px;
-      border-radius: 12px;
+    /* アプリ位置づけ用のリストカード */
+    .info-card {
+      background: #fafbfe;
+      border: 1px solid #e8f0fe;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      transition: all 0.3s ease;
     }
 
-    .legend-item {
+    .info-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(26, 115, 232, 0.04);
+    }
+
+    .info-list {
+      list-style: none;
+    }
+
+    .info-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 20px;
+      font-size: 14.5px;
+      line-height: 1.7;
+    }
+
+    .info-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .info-icon {
+      font-size: 18px;
+      background: #ffffff;
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 13px;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(26, 115, 232, 0.08);
+      flex-shrink: 0;
+    }
+
+    .info-title {
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 4px;
+    }
+
+    .info-desc {
       color: var(--text-muted);
-    }
-
-    .color-dot {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      display: inline-block;
-      flex-shrink: 0;
-    }
-
-    /* ヒント */
-    .tip-box {
-      background: #fff8e1;
-      border: 1px solid #ffe082;
-      border-radius: 12px;
-      padding: 16px 20px;
-      margin: 32px 0;
-      display: flex;
-      gap: 12px;
-      font-size: 13.5px;
-      color: #5d4037;
-    }
-
-    .tip-icon {
-      font-size: 18px;
-      flex-shrink: 0;
     }
 
     /* フッター */
@@ -354,10 +363,45 @@
 
     <div class="content">
       <p class="intro-text">
-        本アプリは、割り当てられた区域の訪問結果を、スマートフォンやパソコンから地図（マップ）を通じて直感的に記録・確認できる専用ツールです。
+        本アプリは、割り当てられた区域の訪問結果を、スマートフォンやパソコンから地図（マップ）を通じて直感的に確認・記録できる専用ツールです。
       </p>
 
-      <!-- 【最重要】初回設定について -->
+      <!-- アプリの位置づけについて -->
+      <div class="section-title">アプリの位置づけについて</div>
+
+      <div class="info-card">
+        <ul class="info-list">
+          <li class="info-item">
+            <span class="info-icon" style="color: var(--primary);">⚙️</span>
+            <div>
+              <div class="info-title">スプレッドシートの入力を簡単にする「補助ツール」です</div>
+              <div class="info-desc">
+                本アプリは、現在お使いの共有スプレッドシートへの記録や閲覧を、地図上からより簡単・直感的に行えるようにした補助的なシステムです。
+              </div>
+            </div>
+          </li>
+          <li class="info-item">
+            <span class="info-icon" style="color: #137333;">🟢</span>
+            <div>
+              <div class="info-title">使わなくても、今まで通りの方法で大丈夫です</div>
+              <div class="info-desc">
+                既存のスプレッドシートを使った閲覧や記録に完全に置き換わるものではありません。アプリをご使用にならなくても、<strong>これまで通りスプレッドシートを直接開いて閲覧・入力していただいて全く問題ありません</strong>。
+              </div>
+            </div>
+          </li>
+          <li class="info-item">
+            <span class="info-icon" style="color: var(--warning);">🔄</span>
+            <div>
+              <div class="info-title">データは完全に自動連携されます</div>
+              <div class="info-desc">
+                アプリから入力した内容も、スプレッドシートに直接入力した内容も、リアルタイムで同じ場所に自動反映されます。ご自身が使いやすい方法を自由にお選びください。
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- 【重要】初回設定について -->
       <div class="section-title important" style="color: var(--accent);">【重要】はじめて起動する際の設定</div>
       
       <div class="notice-box">
@@ -366,7 +410,7 @@
         以下の<strong>「初回設定の5つのステップ」</strong>に沿って進めてください。
       </div>
 
-      <div class="setup-steps" style="margin-bottom: 40px;">
+      <div class="setup-steps" style="margin-bottom: 24px;">
         <!-- STEP 1 -->
         <div class="step-card">
           <div class="step-number">1</div>
@@ -417,61 +461,16 @@
         </div>
       </div>
 
-      <div class="notice-box" style="background:#e8f0fe; border-color:#d1e3fa; color:#185abc;">
+      <div class="notice-box" style="background:#e8f0fe; border-color:#d1e3fa; color:#185abc; margin-bottom: 0;">
         <strong>✨ 設定お疲れさまでした！</strong>
         この設定は「最初の1回目のみ」必要です。次回以降はこれらの警告は表示されず、URLを開くだけですぐにアプリが起動します。
-      </div>
-
-      <!-- アプリの使い方 -->
-      <div class="section-title">アプリの使い方（基本操作）</div>
-
-      <!-- USE STEP 1 -->
-      <div class="step-card">
-        <div class="step-number">1</div>
-        <div class="step-title">メールアドレスログイン</div>
-        <div class="step-desc">
-          設定完了後、アプリにログインします。あらかじめ登録されているご自身のメールアドレスを入力してください。<br>
-          ※2回目以降は、前回入力した情報が自動入力されるためスムーズに入れます。
-        </div>
-      </div>
-
-      <!-- USE STEP 2 -->
-      <div class="step-card">
-        <div class="step-number">2</div>
-        <div class="step-title">地図からピン（建物）を探す</div>
-        <div class="step-desc">
-          地図上のピンは、建物の種類によって以下のように色分けされています。
-          <div class="color-legend">
-            <div class="legend-item"><span class="color-dot" style="background:#1a73e8;"></span>単身世帯（青）</div>
-            <div class="legend-item"><span class="color-dot" style="background:#d93025;"></span>一般世帯（赤）</div>
-            <div class="legend-item"><span class="color-dot" style="background:#f9ab00;"></span>単身/世帯混在（オレンジ）</div>
-            <div class="legend-item"><span class="color-dot" style="background:#9aa0a6;"></span>その他/ビル等（グレー）</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- USE STEP 3 -->
-      <div class="step-card">
-        <div class="step-number">3</div>
-        <div class="step-title">訪問結果の記録</div>
-        <div class="step-desc">
-          ピンをタップして「訪問記録を開く」を選択します。部屋ごとに「会えた」「留守」「空室」「投函のみ」などをタップして記録すると、リアルタイムで共有されます。
-        </div>
-      </div>
-
-      <div class="tip-box">
-        <span class="tip-icon">💡</span>
-        <div>
-          <strong>現在地ボタン機能：</strong><br>
-          地図画面上の右下付近にある丸い「現在地ボタン」をタップすると、現在地の位置に瞬時にジャンプでき、現場での確認に便利です。
-        </div>
       </div>
     </div>
 
     <footer>
       <div class="footer-title">さっそく使ってみましょう</div>
       <p class="footer-desc">
-        まずは以下のリンクからアプリを開き、最初のGoogle設定とログインをお試しください。
+        アプリを開くと、ご登録されているメールアドレスを入力してログインする画面が表示されます。
       </p>
       <a href="https://script.google.com/macros/s/AKfycbxQKsGq8yR5BYEP9g7F3xgpXJHd--UwZOCQ6gPtYKUBuDoq-DLB27_-b_EAA9TWAZm_hA/exec" class="btn-action" target="_blank">アプリを開く</a>
     </footer>
