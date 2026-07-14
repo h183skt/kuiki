@@ -900,7 +900,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '      DATA = res.data;' +
     '      const emailEl = document.getElementById("user-email");' +
     '      if (emailEl) {' +
-    '        emailEl.innerHTML = "ログイン: <b>" + esc(res.name || res.email) + "</b> <a href=\\"#\\" onclick=\\"logout()\\" style=\\"color:var(--accent);margin-left:8px;text-decoration:none;\\">アカウント切替</a>";' +
+    '        emailEl.innerHTML = "ログイン: <b>" + esc(res.name || res.email) + "</b> <a href=\\"#\\" onclick=\\"logout()\\" style=\\"display:none;color:var(--accent);margin-left:8px;text-decoration:none;\\">アカウント切替</a>";' +
     '      }' +
     '      document.getElementById("login-screen").style.display = "none";' +
     '      initApp();' +
