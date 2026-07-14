@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>区域訪問記録アプリ v1.10.0 リリースノート</title>
-  <!-- Google Fonts から Inter と 独自の日本語フォント（Noto Sans JP）を読み込み -->
+  <title>区域訪問記録アプリ ご利用ガイド</title>
+  <!-- Google Fonts から Inter と Noto Sans JP を読み込み -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
@@ -104,109 +104,129 @@
       padding: 40px 32px;
     }
 
+    .intro-text {
+      font-size: 16px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 36px;
+      line-height: 1.8;
+    }
+
     .section-title {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--primary);
-      margin-bottom: 16px;
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-dark);
+      margin-bottom: 24px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     .section-title::before {
       content: '';
       display: inline-block;
       width: 4px;
-      height: 18px;
+      height: 20px;
       background: var(--primary);
       border-radius: 2px;
     }
 
-    /* 変更内容のカード */
-    .card {
-      background: #fafbfe;
-      border: 1px solid #e8f0fe;
+    /* ステップ（使い方）デザイン */
+    .step-card {
+      position: relative;
+      background: #ffffff;
+      border: 1px solid #eef2f6;
       border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 32px;
+      padding: 28px 24px 24px 72px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.01);
       transition: all 0.3s ease;
     }
 
-    .card:hover {
+    .step-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(26, 115, 232, 0.05);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+      border-color: #d1e3fa;
     }
 
-    .update-highlight {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 12px;
-      color: var(--text-dark);
+    .step-number {
+      position: absolute;
+      left: 20px;
+      top: 24px;
+      width: 36px;
+      height: 36px;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: 18px;
+      font-weight: 800;
+      border-radius: 12px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: center;
     }
 
-    .update-desc {
+    .step-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 8px;
+    }
+
+    .step-desc {
+      font-size: 14px;
       color: var(--text-muted);
-      font-size: 15px;
       line-height: 1.7;
     }
 
-    .update-reason {
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 1px dashed #d1e3fa;
-      font-size: 14px;
-      color: var(--text-muted);
-      display: flex;
-      gap: 8px;
-    }
-
-    .icon-info {
-      color: var(--primary);
-      font-weight: bold;
-      flex-shrink: 0;
-    }
-
-    /* 最近の変更履歴リスト */
-    .history-list {
-      list-style: none;
-      margin-bottom: 32px;
-    }
-
-    .history-item {
-      padding: 16px 0;
-      border-bottom: 1px solid #f1f3f4;
-      display: flex;
-      align-items: flex-start;
+    /* 色分け解説用 */
+    .color-legend {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
       gap: 12px;
+      margin-top: 12px;
+      background: #fafafa;
+      padding: 16px;
+      border-radius: 12px;
     }
 
-    .history-item:last-child {
-      border-bottom: none;
-    }
-
-    .history-version {
-      font-weight: 700;
-      color: var(--text-dark);
-      background: #f1f3f4;
-      padding: 2px 8px;
-      border-radius: 6px;
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .color-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: inline-block;
       flex-shrink: 0;
     }
 
-    .history-text {
-      font-size: 14px;
-      color: var(--text-muted);
+    /* 注意書き・ヒント */
+    .tip-box {
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-top: 32px;
+      display: flex;
+      gap: 12px;
+      font-size: 13.5px;
+      color: #5d4037;
+    }
+
+    .tip-icon {
+      font-size: 18px;
+      flex-shrink: 0;
     }
 
     /* フッター案内 */
     footer {
       background: #fafafa;
-      padding: 32px;
+      padding: 40px 32px;
       border-top: 1px solid #f1f3f4;
       text-align: center;
     }
@@ -221,7 +241,7 @@
     .footer-desc {
       font-size: 14px;
       color: var(--text-muted);
-      margin-bottom: 16px;
+      margin-bottom: 24px;
     }
 
     .btn-action {
@@ -229,10 +249,10 @@
       background: var(--primary);
       color: #ffffff;
       text-decoration: none;
-      padding: 12px 32px;
-      border-radius: 12px;
-      font-weight: 600;
-      font-size: 15px;
+      padding: 14px 40px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 16px;
       transition: background 0.2s ease, transform 0.2s ease;
       box-shadow: 0 4px 12px rgba(26, 115, 232, 0.2);
     }
@@ -246,7 +266,6 @@
       transform: translateY(1px);
     }
 
-    /* アニメーション用の微調整 */
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
@@ -262,64 +281,78 @@
   <div class="container">
     <header>
       <div class="logo-container">
-        <!-- ドアとピンをあしらったSVGロゴ -->
+        <!-- ドアとピンのSVGロゴ -->
         <svg class="app-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- ドアの枠 -->
           <rect x="18" y="10" width="28" height="44" rx="4" stroke="#ffffff" stroke-width="4" fill="rgba(255,255,255,0.1)"/>
-          <!-- ドアの開き部分 -->
           <path d="M18 10V54L41 48V16L18 10Z" fill="#ffffff" stroke="#ffffff" stroke-width="2"/>
-          <!-- ドアノブ -->
           <circle cx="36" cy="32" r="2.5" fill="#1a73e8"/>
-          <!-- ピン（マップピン） -->
           <path d="M46 22C46 16.4772 41.5228 12 36 12C30.4772 12 26 16.4772 26 22C26 29 36 40 36 40C36 40 46 29 46 22Z" fill="#d93025" stroke="#ffffff" stroke-width="2"/>
           <circle cx="36" cy="22" r="4.5" fill="#ffffff"/>
         </svg>
       </div>
       <h1>区域訪問記録アプリ</h1>
-      <span class="version-badge">Version v1.10.0 リリース</span>
+      <span class="version-badge">ご利用スタートガイド (v1.10.0)</span>
     </header>
 
     <div class="content">
-      <div class="section-title">主なアップデート内容</div>
-      
-      <div class="card">
-        <div class="update-highlight">🚪 アカウント切替リンクを非表示に変更</div>
-        <div class="update-desc">
-          ログイン画面およびマップ画面上に配置されていた「アカウント切替」リンクを、一時的に非表示といたしました。
+      <p class="intro-text">
+        本アプリは、割り当てられた区域の訪問結果を、スマートフォンやパソコンから地図（マップ）を通じて直感的に記録・確認できる専用ツールです。
+      </p>
+
+      <div class="section-title">アプリの使い方（3ステップ）</div>
+
+      <!-- STEP 1 -->
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <div class="step-title">メールアドレスを入力してログイン</div>
+        <div class="step-desc">
+          アプリ起動画面で、あらかじめ担当係に登録された「ご自身のメールアドレス」を入力してログインします。<br>
+          ※2回目以降は、前回のアドレスが自動入力されるためスムーズにログインできます。
         </div>
-        <div class="update-reason">
-          <span class="icon-info">ℹ️</span>
-          <div>
-            一般利用における誤タップや、意図しないログアウト操作を防ぐための調整となります。通常のご利用でアカウントを切り替える必要がないユーザーの方々へ、よりシンプルで使いやすい操作環境を提供します。
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <div class="step-title">地図から訪問する建物（ピン）を探す</div>
+        <div class="step-desc">
+          ログインすると地図が表示されます。担当エリアにある建物（マンション等）の場所にピンが立っています。<br>
+          建物の種別（単身・世帯など）によってピンの色が分かれています。
+          <div class="color-legend">
+            <div class="legend-item"><span class="color-dot" style="background:#1a73e8;"></span>単身世帯（青）</div>
+            <div class="legend-item"><span class="color-dot" style="background:#d93025;"></span>一般世帯（赤）</div>
+            <div class="legend-item"><span class="color-dot" style="background:#f9ab00;"></span>単身/世帯混在（オレンジ）</div>
+            <div class="legend-item"><span class="color-dot" style="background:#9aa0a6;"></span>その他/ビル等（グレー）</div>
           </div>
         </div>
       </div>
 
-      <div class="section-title">最近の改善履歴</div>
-      <ul class="history-list">
-        <li class="history-item">
-          <span class="history-version">v1.9.8</span>
-          <span class="history-text">マンションページの「マンション名」のフォントサイズを「現在日時」と同等の大きさに拡大し、視認性を向上させました。</span>
-        </li>
-        <li class="history-item">
-          <span class="history-version">v1.9.7</span>
-          <span class="history-text">マンションページ上部の日時表示を大きくし、秒単位でリアルタイム更新する機能を追加しました。</span>
-        </li>
-        <li class="history-item">
-          <span class="history-version">v1.9.6</span>
-          <span class="history-text">マンションページ上部に現在日時（曜日付き）および現在時刻を表示する機能を追加しました。</span>
-        </li>
-        <li class="history-item">
-          <span class="history-version">v1.9.5</span>
-          <span class="history-text">閲覧・編集権限エラー発生時に、現在ログイン中のアカウントアドレスを大きく表示する機能を追加しました。</span>
-        </li>
-      </ul>
+      <!-- STEP 3 -->
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <div class="step-title">訪問結果をその場で記録・登録</div>
+        <div class="step-desc">
+          建物のピンをタップして「訪問記録を開く」を選択します。<br>
+          各部屋（号室）の現在の状況（「会えた」「留守」「空室」など）をタップして選ぶだけで、自動的にクラウドに保存されます。
+        </div>
+      </div>
+
+      <!-- ヒント・お役立ち機能 -->
+      <div class="tip-box">
+        <span class="tip-icon">💡</span>
+        <div>
+          <strong>現在地ボタン機能：</strong><br>
+          地図画面上の右下付近にある丸い「現在地ボタン」をタップすると、現在地の位置に瞬時にジャンプでき、現場での確認に便利です。
+        </div>
+      </div>
     </div>
 
     <footer>
-      <div class="footer-title">アプリの利用について</div>
-      <p class="footer-desc">アプリにログインできない場合や、データの不具合がある場合は、区域の担当係まで直接お気軽にご連絡ください。</p>
-      <a href="https://script.google.com/macros/s/AKfycbxQKsGq8yR5BYEP9g7F3xgpXJHd--UwZOCQ6gPtYKUBuDoq-DLB27_-b_EAA9TWAZm_hA/exec" class="btn-action" target="_blank">アプリを起動する</a>
+      <div class="footer-title">さっそく使ってみましょう</div>
+      <p class="footer-desc">
+        まずは以下のリンクからアプリを開き、メールアドレスでログインして地図を確認してください。
+      </p>
+      <a href="https://script.google.com/macros/s/AKfycbxQKsGq8yR5BYEP9g7F3xgpXJHd--UwZOCQ6gPtYKUBuDoq-DLB27_-b_EAA9TWAZm_hA/exec" class="btn-action" target="_blank">アプリを開く</a>
     </footer>
   </div>
 
