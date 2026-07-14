@@ -256,7 +256,7 @@ function runMasterUpdate() {
 function createManualInDrive() {
   try {
     // HTMLオブジェクトを作成し、PDFのBlobに変換
-    const htmlOutput = HtmlService.createHtmlOutputFromFile('guide');
+    const htmlOutput = HtmlService.createHtmlOutputFromFile('map_app-guide');
     const pdfBlob = htmlOutput.getAs(MimeType.PDF);
     
     const ss = SpreadsheetApp.getActiveSpreadsheet();
