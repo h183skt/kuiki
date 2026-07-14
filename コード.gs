@@ -255,7 +255,10 @@ function runMasterUpdate() {
  */
 function createManualInDrive() {
   try {
-    const htmlContent = HtmlService.createHtmlOutputFromFile('release-notes-v1.10.0').getContent();
+    // HTMLオブジェクトを作成し、PDFのBlobに変換
+    const htmlOutput = HtmlService.createHtmlOutputFromFile('release-notes-v1.10.0');
+    const pdfBlob = htmlOutput.getAs(MimeType.PDF);
+    
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     if (!ss) {
       Logger.log('エラー: このスクリプトはスプレッドシートにバインドされていません。');
@@ -265,18 +268,19 @@ function createManualInDrive() {
     const parents = file.getParents();
     const folder = parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
     
-    const fileName = 'ご利用スタートガイド_v1.10.0.html';
+    const fileName = 'ご利用スタートガイド_v1.10.0.pdf';
     
-    // 同名ファイルがあればゴミ箱へ
+    // 同名の古いファイルをゴミ箱へ移動
     const existingFiles = folder.getFilesByName(fileName);
     while (existingFiles.hasNext()) {
       existingFiles.next().setTrashed(true);
     }
     
-    const newFile = folder.createFile(fileName, htmlContent, MimeType.HTML);
+    // PDFファイルとして作成
+    const newFile = folder.createFile(pdfBlob).setName(fileName);
     newFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     
-    Logger.log('HTMLファイルを作成しました！');
+    Logger.log('PDFファイルを作成しました！');
     Logger.log('フォルダ: ' + folder.getName());
     Logger.log('共有URL: ' + newFile.getUrl());
   } catch (e) {
