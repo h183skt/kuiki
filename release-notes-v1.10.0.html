@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>区域訪問記録アプリ ご利用ガイド</title>
+  <title>区域訪問記録アプリ ご利用スタートガイド</title>
   <!-- Google Fonts から Inter と Noto Sans JP を読み込み -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,6 +14,9 @@
       --primary: #1a73e8;
       --primary-light: #e8f0fe;
       --accent: #d93025;
+      --accent-light: #fce8e6;
+      --warning: #f2994a;
+      --warning-light: #fff8f2;
       --text-dark: #202124;
       --text-muted: #5f6368;
       --bg-gradient: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
@@ -74,7 +77,6 @@
       transform: scale(1.05) rotate(5deg);
     }
 
-    /* ドアとピンのSVGアイコン */
     .app-icon {
       width: 48px;
       height: 48px;
@@ -116,6 +118,7 @@
       font-size: 20px;
       font-weight: 800;
       color: var(--text-dark);
+      margin-top: 16px;
       margin-bottom: 24px;
       display: flex;
       align-items: center;
@@ -131,14 +134,36 @@
       border-radius: 2px;
     }
 
-    /* ステップ（使い方）デザイン */
+    .section-title.important::before {
+      background: var(--accent);
+    }
+
+    /* 重要お知らせボックス */
+    .notice-box {
+      background: var(--accent-light);
+      border: 1px solid #fad2cf;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 32px;
+      color: #c5221f;
+      font-size: 14.5px;
+      line-height: 1.7;
+    }
+
+    .notice-box strong {
+      font-size: 16px;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    /* ステップデザイン */
     .step-card {
       position: relative;
       background: #ffffff;
       border: 1px solid #eef2f6;
       border-radius: 16px;
-      padding: 28px 24px 24px 72px;
-      margin-bottom: 24px;
+      padding: 24px 24px 24px 72px;
+      margin-bottom: 20px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.01);
       transition: all 0.3s ease;
     }
@@ -152,7 +177,7 @@
     .step-number {
       position: absolute;
       left: 20px;
-      top: 24px;
+      top: 22px;
       width: 36px;
       height: 36px;
       background: var(--primary-light);
@@ -165,20 +190,54 @@
       justify-content: center;
     }
 
+    /* 初回設定用ステップデザインの装飾 */
+    .setup-steps .step-card {
+      border-left: 4px solid var(--warning);
+    }
+    
+    .setup-steps .step-number {
+      background: var(--warning-light);
+      color: #d06d10;
+    }
+
     .step-title {
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 700;
       color: var(--text-dark);
-      margin-bottom: 8px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
     .step-desc {
-      font-size: 14px;
+      font-size: 13.5px;
       color: var(--text-muted);
       line-height: 1.7;
     }
 
-    /* 色分け解説用 */
+    .badge-highlight {
+      background: var(--accent-light);
+      color: var(--accent);
+      border: 1px solid #fad2cf;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .badge-safe {
+      background: #e6f4ea;
+      color: #137333;
+      border: 1px solid #ceead6;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* 建物種別凡例 */
     .color-legend {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -205,13 +264,13 @@
       flex-shrink: 0;
     }
 
-    /* 注意書き・ヒント */
+    /* ヒント */
     .tip-box {
       background: #fff8e1;
       border: 1px solid #ffe082;
       border-radius: 12px;
       padding: 16px 20px;
-      margin-top: 32px;
+      margin: 32px 0;
       display: flex;
       gap: 12px;
       font-size: 13.5px;
@@ -223,7 +282,7 @@
       flex-shrink: 0;
     }
 
-    /* フッター案内 */
+    /* フッター */
     footer {
       background: #fafafa;
       padding: 40px 32px;
@@ -281,7 +340,6 @@
   <div class="container">
     <header>
       <div class="logo-container">
-        <!-- ドアとピンのSVGロゴ -->
         <svg class="app-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="18" y="10" width="28" height="44" rx="4" stroke="#ffffff" stroke-width="4" fill="rgba(255,255,255,0.1)"/>
           <path d="M18 10V54L41 48V16L18 10Z" fill="#ffffff" stroke="#ffffff" stroke-width="2"/>
@@ -299,25 +357,90 @@
         本アプリは、割り当てられた区域の訪問結果を、スマートフォンやパソコンから地図（マップ）を通じて直感的に記録・確認できる専用ツールです。
       </p>
 
-      <div class="section-title">アプリの使い方（3ステップ）</div>
+      <!-- 【最重要】初回設定について -->
+      <div class="section-title important" style="color: var(--accent);">【重要】はじめて起動する際の設定</div>
+      
+      <div class="notice-box">
+        <strong>⚠️ 最初に必ずセキュリティ確認画面が表示されます</strong>
+        このアプリは会衆内だけで安全に利用するために作られた「自作アプリ」であるため、初回起動時のみ Google によるセキュリティ警告画面がいくつか表示される仕様となっています。
+        以下の<strong>「初回設定の5つのステップ」</strong>に沿って進めてください。
+      </div>
 
-      <!-- STEP 1 -->
-      <div class="step-card">
-        <div class="step-number">1</div>
-        <div class="step-title">メールアドレスを入力してログイン</div>
-        <div class="step-desc">
-          アプリ起動画面で、あらかじめ担当係に登録された「ご自身のメールアドレス」を入力してログインします。<br>
-          ※2回目以降は、前回のアドレスが自動入力されるためスムーズにログインできます。
+      <div class="setup-steps" style="margin-bottom: 40px;">
+        <!-- STEP 1 -->
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <div class="step-title">Google アカウントの選択</div>
+          <div class="step-desc">
+            ログインに使用する、ご自身のアカウント（Gmailアドレス）を選択します。
+          </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <div class="step-title">権限の確認画面</div>
+          <div class="step-desc">
+            Google Apps Script の認証画面が表示されます。<br>
+            画面右下にある青いボタン<strong>「REVIEW PERMISSIONS」</strong>（または<strong>「権限を確認」</strong>）をタップします。
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <div class="step-title">「確認されていません」画面 <span class="badge-highlight">※ここが一番のポイント！</span></div>
+          <div class="step-desc">
+            「このアプリは Google で確認されていません」と表示されます。<br>
+            ※画面中央にある青い大きなボタンは<strong>【絶対に押さずに】</strong>、左下にある小さな文字の<strong>「詳細」</strong>をタップします。
+          </div>
+        </div>
+
+        <!-- STEP 4 -->
+        <div class="step-card">
+          <div class="step-number">4</div>
+          <div class="step-title">詳細展開後のリンク <span class="badge-safe">安全ですのでご安心ください</span></div>
+          <div class="step-desc">
+            「詳細」をタップすると説明文が展開されます。<br>
+            下へスクロールし、一番左下にある<strong>「区域訪問記録アプリ（安全ではないページ）に移動」</strong>という青いリンクテキストをタップします。
+          </div>
+        </div>
+
+        <!-- STEP 5 -->
+        <div class="step-card">
+          <div class="step-number">5</div>
+          <div class="step-title">信頼性の確認と「続行」</div>
+          <div class="step-desc">
+            アクセス権を許可する確認画面が表示されます。<br>
+            画面を一番下までスクロールし、右下の<strong>「続行」</strong>（または「Allow / 許可」）をタップします。
+          </div>
         </div>
       </div>
 
-      <!-- STEP 2 -->
+      <div class="notice-box" style="background:#e8f0fe; border-color:#d1e3fa; color:#185abc;">
+        <strong>✨ 設定お疲れさまでした！</strong>
+        この設定は「最初の1回目のみ」必要です。次回以降はこれらの警告は表示されず、URLを開くだけですぐにアプリが起動します。
+      </div>
+
+      <!-- アプリの使い方 -->
+      <div class="section-title">アプリの使い方（基本操作）</div>
+
+      <!-- USE STEP 1 -->
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <div class="step-title">メールアドレスログイン</div>
+        <div class="step-desc">
+          設定完了後、アプリにログインします。あらかじめ登録されているご自身のメールアドレスを入力してください。<br>
+          ※2回目以降は、前回入力した情報が自動入力されるためスムーズに入れます。
+        </div>
+      </div>
+
+      <!-- USE STEP 2 -->
       <div class="step-card">
         <div class="step-number">2</div>
-        <div class="step-title">地図から訪問する建物（ピン）を探す</div>
+        <div class="step-title">地図からピン（建物）を探す</div>
         <div class="step-desc">
-          ログインすると地図が表示されます。担当エリアにある建物（マンション等）の場所にピンが立っています。<br>
-          建物の種別（単身・世帯など）によってピンの色が分かれています。
+          地図上のピンは、建物の種類によって以下のように色分けされています。
           <div class="color-legend">
             <div class="legend-item"><span class="color-dot" style="background:#1a73e8;"></span>単身世帯（青）</div>
             <div class="legend-item"><span class="color-dot" style="background:#d93025;"></span>一般世帯（赤）</div>
@@ -327,17 +450,15 @@
         </div>
       </div>
 
-      <!-- STEP 3 -->
+      <!-- USE STEP 3 -->
       <div class="step-card">
         <div class="step-number">3</div>
-        <div class="step-title">訪問結果をその場で記録・登録</div>
+        <div class="step-title">訪問結果の記録</div>
         <div class="step-desc">
-          建物のピンをタップして「訪問記録を開く」を選択します。<br>
-          各部屋（号室）の現在の状況（「会えた」「留守」「空室」など）をタップして選ぶだけで、自動的にクラウドに保存されます。
+          ピンをタップして「訪問記録を開く」を選択します。部屋ごとに「会えた」「留守」「空室」「投函のみ」などをタップして記録すると、リアルタイムで共有されます。
         </div>
       </div>
 
-      <!-- ヒント・お役立ち機能 -->
       <div class="tip-box">
         <span class="tip-icon">💡</span>
         <div>
@@ -350,7 +471,7 @@
     <footer>
       <div class="footer-title">さっそく使ってみましょう</div>
       <p class="footer-desc">
-        まずは以下のリンクからアプリを開き、メールアドレスでログインして地図を確認してください。
+        まずは以下のリンクからアプリを開き、最初のGoogle設定とログインをお試しください。
       </p>
       <a href="https://script.google.com/macros/s/AKfycbxQKsGq8yR5BYEP9g7F3xgpXJHd--UwZOCQ6gPtYKUBuDoq-DLB27_-b_EAA9TWAZm_hA/exec" class="btn-action" target="_blank">アプリを開く</a>
     </footer>
