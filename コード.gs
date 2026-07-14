@@ -256,7 +256,7 @@ function runMasterUpdate() {
 function createManualInDrive() {
   try {
     // HTMLオブジェクトを作成し、PDFのBlobに変換
-    const htmlOutput = HtmlService.createHtmlOutputFromFile('release-notes-v1.10.0');
+    const htmlOutput = HtmlService.createHtmlOutputFromFile('guide');
     const pdfBlob = htmlOutput.getAs(MimeType.PDF);
     
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -268,7 +268,7 @@ function createManualInDrive() {
     const parents = file.getParents();
     const folder = parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
     
-    const fileName = 'ご利用スタートガイド_v1.10.0.pdf';
+    const fileName = 'ご利用スタートガイド.pdf';
     
     // 同名の古いファイルをゴミ箱へ移動
     const existingFiles = folder.getFilesByName(fileName);
