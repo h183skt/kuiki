@@ -676,7 +676,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '<div id="areas"></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;"><div id="count" style="margin:0;"></div><span id="user-email" style="font-size:11px;color:var(--sub);padding-right:2px;"></span></div></header>' +
     '<main id="list"></main>' +
     '<div id="mapwrap"><div id="map"></div><button id="locate">現在地</button></div>' +
-    '<div id="rec"><div id="recinner"><div id="rechead"><div style="flex:1;min-width:0;"><h2 id="rectitle" style="font-size:18px;font-weight:800;color:var(--text);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">訪問記録</h2><div id="rec-datetime" style="font-size:18px;color:var(--accent);margin-top:4px;font-weight:800;letter-spacing:-0.5px;"></div></div><button id="recclose">閉じる</button></div><div id="rec-dir" style="padding:0 12px 8px 12px;display:none;"></div><div id="recbody"></div></div></div>' +
+    '<div id="rec"><div id="recinner"><div id="rechead"><div style="flex:1;min-width:0;"><h2 id="rectitle" style="font-size:18px;font-weight:800;color:var(--text);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">訪問記録</h2><div id="rec-datetime" style="font-size:18px;color:var(--accent);margin-top:4px;font-weight:800;letter-spacing:-0.5px;"></div></div><button id="recclose">閉じる</button></div><div id="recbody"></div><div id="rec-dir" style="padding:10px 12px;display:none;background:var(--card);border-top:1px solid var(--line);"></div></div></div>' +
     '<div id="edit"><div id="editbox">' +
     '<div class="edithead"><p id="edittitle">記録</p><button id="editclose" aria-label="閉じる">×</button></div>' +
     '<div class="resrow" id="resrow"></div>' +
@@ -814,19 +814,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' if(pts.length>0&&watchId===null&&!savedView)map.fitBounds(pts,{padding:[30,30],maxZoom:17});}' +
     'function openRec(r){curSheetIndex=0;const m=document.getElementById("rec");m.style.display="block";' +
     ' document.getElementById("rectitle").textContent=r.name;' +
-    ' const dirEl=document.getElementById("rec-dir");' +
-    ' if(dirEl){' +
-    '  if(r.lat!==null&&r.lng!==null){' +
-    '   const dirBase="https://www.google.com/maps/dir/?api=1&destination="+r.lat+","+r.lng+"&travelmode=";' +
-    '   dirEl.innerHTML="<div class=dirrow style=\\"margin-top:0;\\">"+' +
-    '    "<a class=dirlink href=\\""+dirBase+"walking\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\udeb6 徒歩</a>"+' +
-    '    "<a class=dirlink href=\\""+dirBase+"bicycling\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\udeb2 自転車</a>"+' +
-    '    "<a class=dirlink href=\\""+dirBase+"driving\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\ude97 車</a></div>";' +
-    '   dirEl.style.display="block";' +
-    '  }else{' +
-    '   dirEl.style.display="none";' +
-    '  }' +
-    ' }' +
+    ' const dirEl=document.getElementById("rec-dir");if(dirEl)dirEl.style.display="none";' +
     ' if(recTimer)clearInterval(recTimer);' +
     ' const tick=()=>{const dtEl=document.getElementById("rec-datetime");if(dtEl){' +
     '  const d=new Date();const w=["日","月","火","水","木","金","土"][d.getDay()];' +
@@ -842,7 +830,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '      "<div style=\\"background:#fff;border:1px solid #f5c2c7;border-radius:6px;padding:8px;text-align:center;font-size:16px;font-weight:800;text-decoration:underline;color:#202124;word-break:break-all;margin-top:8px;\\">" + esc(USER_EMAIL) + "</div></div>";' +
     '  }' +
     '  html+="</div>";body.innerHTML=html;}).getVisitRecords(r.url);}' +
-    'function closeRec(){closeEdit();document.getElementById("rec").style.display="none";curRec=null;if(recTimer){clearInterval(recTimer);recTimer=null;}}' +
+    'function closeRec(){closeEdit();document.getElementById("rec").style.display="none";curRec=null;if(recTimer){clearInterval(recTimer);recTimer=null;}const dirEl=document.getElementById("rec-dir");if(dirEl)dirEl.style.display="none";}' +
     'function currentPeriodIndex(){return Math.floor(new Date().getMonth()/3);}' +
     'function renderRec(){const body=document.getElementById("recbody");const res=curRec.data;' +
     ' if(!res||!res.ok){body.innerHTML="<p class=recnote>読み込みに失敗しました: "+esc(res&&res.error?res.error:"不明なエラー")+"</p>";return;}' +
@@ -871,7 +859,20 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' const curp=body.querySelector("th.curp");' +
     ' if(curp){const rm=body.querySelector("th.rm");const off=rm?rm.offsetWidth:50;' +
     '  body.scrollLeft=curp.offsetLeft-off;}' +
-    ' [...body.querySelectorAll("td.cell")].forEach(td=>{td.onclick=()=>openEdit(Number(td.dataset.ri),Number(td.dataset.ci));});}' +
+    ' [...body.querySelectorAll("td.cell")].forEach(td=>{td.onclick=()=>openEdit(Number(td.dataset.ri),Number(td.dataset.ci));});' +
+    ' const r=curRec.r;const dirEl=document.getElementById("rec-dir");' +
+    ' if(dirEl){' +
+    '  if(r.lat!==null&&r.lng!==null){' +
+    '   const dirBase="https://www.google.com/maps/dir/?api=1&destination="+r.lat+","+r.lng+"&travelmode=";' +
+    '   dirEl.innerHTML="<div class=dirrow style=\\"margin-top:0;\\">"+' +
+    '    "<a class=dirlink href=\\""+dirBase+"walking\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\udeb6 徒歩</a>"+' +
+    '    "<a class=dirlink href=\\""+dirBase+"bicycling\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\udeb2 自転車</a>"+' +
+    '    "<a class=dirlink href=\\""+dirBase+"driving\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\ude97 車</a></div>";' +
+    '   dirEl.style.display="block";' +
+    '  }else{' +
+    '   dirEl.style.display="none";' +
+    '  }' +
+    ' }}' +
     'function openEdit(ri,ci){const room=curRec.data.rooms[ri];const cell=room.cells[ci];' +
     ' curEdit={ri:ri,ci:ci,chosen:cell.result||"",clearMode:false};' +
     ' document.getElementById("edittitle").textContent=room.room+"号室　"+periodLabel(ci);' +
