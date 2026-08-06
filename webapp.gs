@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.0',
+  VERSION: 'v1.11.1',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -373,6 +373,9 @@ function isValidAccess_(email) {
 
 function friendlySheetAccessError_(e, mode) {
   const msg = String(e);
+  if (msg.indexOf('PROTECTED_SHEET') !== -1) {
+    return 'この記録シートは保護されているため、アプリからは開けません。保護の解除が必要な場合は、スプレッドシートのオーナーに連絡してください。';
+  }
   if (msg.indexOf('権限') !== -1 || msg.toLowerCase().indexOf('permission') !== -1 || msg.toLowerCase().indexOf('access') !== -1) {
     return '個別スプレッドシートの閲覧・編集権限がありません。Googleドライブ上でアクセス権が共有されているか管理者に確認してください。';
   }
@@ -425,18 +428,41 @@ function openSheetByUrl_(url, purpose) {
   if (!ids) return null;
 
   const ss = SpreadsheetApp.openById(ids.fileId);
+  let sheet = null;
 
   if (ids.gid !== null) {
     const all = ss.getSheets();
 
     for (let i = 0; i < all.length; i++) {
       if (String(all[i].getSheetId()) === String(ids.gid)) {
-        return all[i];
+        sheet = all[i];
+        break;
       }
     }
   }
 
-  return ss.getSheets()[0];
+  if (!sheet) {
+    sheet = ss.getSheets()[0];
+  }
+
+  assertSheetIsNotProtected_(sheet);
+  return sheet;
+}
+
+/**
+ * Google スプレッドシート上で対象タブ全体に現在の利用者が編集できない保護が
+ * 設定されている場合、閲覧目的でもアプリにはデータを返さない。
+ * 警告のみの保護は編集を禁止する設定ではないため対象外とする。
+ */
+function assertSheetIsNotProtected_(sheet) {
+  const protections = sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET);
+
+  for (let i = 0; i < protections.length; i++) {
+    const protection = protections[i];
+    if (!protection.isWarningOnly() && !protection.canEdit()) {
+      throw new Error('PROTECTED_SHEET');
+    }
+  }
 }
 
 function parseSheetUrl_(url) {
@@ -989,6 +1015,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notes=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.1: 保護された記録シートをアプリから開いたり保存したりできないように変更。\\n" +' +
     '      "・v1.11.0: 訪問記録モーダルの下部に徒歩・自転車・車でのルート案内ボタンを追加。\\n" +' +
     '      "・v1.10.0: アカウント切り替えボタン（リンク）を一時的に非表示に変更。\\n" +' +
     '      "・v1.9.8: マンションページの「マンション名」のフォントサイズを「現在日時」と同等の大きさに拡大。\\n" +' +
