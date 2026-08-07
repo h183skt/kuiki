@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.8',
+  VERSION: 'v1.11.9',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -642,6 +642,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.dirlink{flex:1;text-align:center;font-size:13px;font-weight:700;background:var(--green);color:#fff;border-radius:8px;padding:10px 4px;text-decoration:none;white-space:nowrap;}' +
     '.pop .actionrow{display:flex;gap:5px;margin-top:6px;}' +
     '.pop .recbtn{flex:2;text-align:center;font-size:13px;font-weight:700;background:var(--accent);color:#fff;border-radius:8px;padding:10px;cursor:pointer;white-space:nowrap;}' +
+    '.pop .recbtn.disabled{background:var(--sub);opacity:.5;cursor:not-allowed;pointer-events:none;}' +
     '.pop .closebtn{flex:1;text-align:center;font-size:13px;font-weight:700;background:var(--sub);color:#fff;border-radius:8px;padding:10px;cursor:pointer;white-space:nowrap;}' +
     '.pop .pbadge{display:inline-block;font-size:11px;background:#e8f0fe;color:var(--accent);border-radius:5px;padding:0 6px;font-weight:600;margin-bottom:3px;}' +
     '.me-wrap{position:relative;width:36px;height:40px;}' +
@@ -828,21 +829,23 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '   "<a class=dirlink href=\\""+dirBase+"driving\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\ude97 車</a></div>";' +
     '  let popHtml="<div class=pop>";const handlers=[];' +
     '  if(!isMulti){const r=first;const popId="rb_"+Math.random().toString(36).slice(2);const closeId="cb_"+Math.random().toString(36).slice(2);handlers.push({id:popId,closeId:closeId,r:r});' +
+    '   const btnCls=r.state?"recbtn disabled":"recbtn";' +
     '   popHtml+=(r.type?"<span class=pbadge>"+esc(r.type)+"</span><br>":"")+' +
     '    "<div class=pname>"+esc(r.name)+"</div><div class=paddr>"+esc(r.addr)+"</div>"+dirBtns+' +
-    '    "<div class=actionrow><div class=recbtn id="+popId+">訪問記録を開く</div><div class=closebtn id="+closeId+">閉じる</div></div>";' +
+    '    "<div class=actionrow><div class=\\""+btnCls+"\\" id="+popId+">訪問記録を開く</div><div class=closebtn id="+closeId+">閉じる</div></div>";' +
     '  }else{' +
     '   popHtml+="<div class=paddr style=\\"font-weight:bold;margin-bottom:5px;\\">"+esc(first.addr)+"</div>"+dirBtns;' +
     '   items.forEach(r=>{const popId="rb_"+Math.random().toString(36).slice(2);const closeId="cb_"+Math.random().toString(36).slice(2);handlers.push({id:popId,closeId:closeId,r:r});' +
+    '    const btnCls=r.state?"recbtn disabled":"recbtn";' +
     '    popHtml+="<div style=\\"margin-top:8px;border-top:1px solid var(--line);padding-top:8px;\\">"+' +
     '     (r.type?"<span class=pbadge style=\\"background:"+(COLORS[r.type]||DEFC)+";color:#fff;\\">"+esc(r.type)+"</span> ":"")+' +
     '     "<span class=pname style=\\"font-size:14px;\\">"+esc(r.name)+"</span>"+' +
-    '     "<div class=actionrow><div class=recbtn id="+popId+">訪問記録を開く</div><div class=closebtn id="+closeId+">閉じる</div></div></div>";});' +
+    '     "<div class=actionrow><div class=\\""+btnCls+"\\" id="+popId+">訪問記録を開く</div><div class=closebtn id="+closeId+">閉じる</div></div></div>";});' +
     '  }' +
     '  popHtml+="</div>";' +
     '  mk.bindPopup(popHtml);' +
     '  mk.on("popupopen",()=>{handlers.forEach(h=>{' +
-    '    const el=document.getElementById(h.id);if(el)el.onclick=()=>openRec(h.r);' +
+    '    const el=document.getElementById(h.id);if(el&&!h.r.state)el.onclick=()=>openRec(h.r);' +
     '    const cel=document.getElementById(h.closeId);if(cel)cel.onclick=()=>map.closePopup();' +
     '  });});' +
     '  mk.addTo(layer);});' +
@@ -1030,6 +1033,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notes=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.9: 地図ピンの「訪問記録を開く」ボタンを、訪問拒否の建物ではグレーアウトして遷移できないように変更。\\n" +' +
     '      "・v1.11.8: 保護された記録シートについて、編集権限が無いユーザーでも閲覧はできるように変更（保存は引き続きブロック）。\\n" +' +
     '      "・v1.11.7: 黒塗り検知による訪問拒否の反映を、初回検知時のみ更新履歴に記録するよう変更（同じ検知が毎回記録される問題を解消）。\\n" +' +
     '      "・v1.11.6: マスター更新中の進行状況を、シート画面のトースト通知とWebアプリの「マスター更新」ボタン表示（件数）で確認できるように変更。\\n" +' +
