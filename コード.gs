@@ -54,6 +54,14 @@ function onOpen() {
 
 /** メイン処理 */
 function mergeAreaSheets() {
+  try {
+    mergeAreaSheets_();
+  } finally {
+    clearProgress_();
+  }
+}
+
+function mergeAreaSheets_() {
   const folder = DriveApp.getFolderById(CONFIG.FOLDER_ID);
   const masterId = SpreadsheetApp.getActiveSpreadsheet().getId();
 
@@ -76,7 +84,9 @@ function mergeAreaSheets() {
   const seenAreas = new Set();
   const addrInfo = new Map(); // 住所 -> { area, names: [マンション名, ...] }
 
-  files.forEach(file => {
+  files.forEach((file, fileIdx) => {
+    setProgress_(fileIdx + 1, files.length, file.getName());
+
     const fileName = file.getName();
     // ファイル名に「テスト」という文字列が含まれている場合は統合から除外
     if (fileName.indexOf('テスト') !== -1) {
@@ -218,6 +228,56 @@ function mergeAreaSheets() {
     SpreadsheetApp.getUi().alert(msg);
   } catch (e) {
     Logger.log(msg);
+  }
+}
+
+const PROGRESS_CACHE_KEY = 'MERGE_PROGRESS';
+
+/**
+ * 更新の進行状況をキャッシュへ書き込み、スプレッドシート上にもトースト表示する。
+ * Webアプリ側は getMergeProgress() をポーリングして進捗（件数）を表示する。
+ */
+function setProgress_(current, total, label) {
+  try {
+    CacheService.getScriptCache().put(
+      PROGRESS_CACHE_KEY,
+      JSON.stringify({ current: current, total: total, label: label, done: false }),
+      120
+    );
+  } catch (e) {
+    // 進捗表示のみに影響するため、失敗しても処理は継続する
+  }
+  try {
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      current + ' / ' + total + ' 件処理中: ' + label,
+      '区域データ更新中',
+      -1
+    );
+  } catch (e) {
+    // UIコンテキストが無い実行（トリガー等）では無視
+  }
+}
+
+/** 更新完了時に進行状況キャッシュを完了状態にする */
+function clearProgress_() {
+  try {
+    CacheService.getScriptCache().put(
+      PROGRESS_CACHE_KEY,
+      JSON.stringify({ current: 0, total: 0, label: '', done: true }),
+      60
+    );
+  } catch (e) {
+    // 無視
+  }
+}
+
+/** Webアプリのクライアントから進行状況をポーリングするための取得口 */
+function getMergeProgress() {
+  try {
+    const raw = CacheService.getScriptCache().get(PROGRESS_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
   }
 }
 

@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.5',
+  VERSION: 'v1.11.6',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -1001,7 +1001,12 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '    if(!confirm("各スプレッドシートからマンションデータを再読み込みし、マスターファイルを更新しますか？\\n（完了まで少し時間がかかります）"))return;' +
     '    const origText=btnUpdate.textContent;' +
     '    btnUpdate.disabled=true;btnUpdate.textContent="更新中…";' +
+    '    const pollProgress=()=>{google.script.run.withSuccessHandler(p=>{' +
+    '      if(p&&p.total>0&&!p.done)btnUpdate.textContent="更新中…"+p.current+"/"+p.total;' +
+    '    }).withFailureHandler(()=>{}).getMergeProgress();};' +
+    '    const pollTimer=setInterval(pollProgress,1500);pollProgress();' +
     '    google.script.run.withSuccessHandler(res=>{' +
+    '      clearInterval(pollTimer);' +
     '      if(res&&res.ok){' +
     '        alert(res.message);' +
     '        safeReload();' +
@@ -1010,6 +1015,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '        alert("更新に失敗しました: "+(res&&res.error?res.error:"不明なエラー"));' +
     '      }' +
     '    }).withFailureHandler(err=>{' +
+    '      clearInterval(pollTimer);' +
     '      btnUpdate.disabled=false;btnUpdate.textContent=origText;' +
     '      alert("通信エラーが発生しました: "+err);' +
     '    }).runMasterUpdate();' +
@@ -1020,6 +1026,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notes=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.6: マスター更新中の進行状況を、シート画面のトースト通知とWebアプリの「マスター更新」ボタン表示（件数）で確認できるように変更。\\n" +' +
     '      "・v1.11.5: マスター更新時に、座標キャッシュに無い住所を自動でジオコーディングして追加し、追加内容（エリア・マンション名・住所）を更新履歴に記録する機能を追加。\\n" +' +
     '      "・v1.11.4: マンション一覧の黒塗りセルから訪問拒否を自動検知してマスターへ反映し、拒否の建物は地図上に×アイコンで表示する機能を追加。\\n" +' +
     '      "・v1.11.3: マスター更新（今すぐ更新）実行時に、実行日時と結果を「更新履歴」シートへ自動記録する機能を追加。\\n" +' +
