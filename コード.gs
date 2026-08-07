@@ -35,6 +35,8 @@ const CONFIG = {
   // 訪問拒否の黒塗り検知（マンション一覧の行に黒背景セルがあれば拒否扱いにする）
   STATE_COLUMN_INDEX: 7,   // 拒否列の位置（範囲内の位置。7 = G列「拒否」）
   BLACKOUT_MARK: '〇',      // 黒塗り検知時に拒否列へ書き込む文字
+  ID_COLUMN_INDEX: 6,      // ID列の位置（範囲内の位置。6 = F列「ID」。黒塗り検知の重複判定キーに使用）
+  BLACKOUT_LOG_SHEET_NAME: '黒塗り検知記録', // 検知済みキーの管理シート（初回のみ履歴に記録するため）
 
   // 座標キャッシュ同期（統合シートにある住所で、座標キャッシュに無いものを追加する）
   ADDR_COLUMN_INDEX: 4,          // 住所列の位置（範囲内の位置。4 = D列「住所」）
@@ -77,12 +79,15 @@ function mergeAreaSheets_() {
 
   files.sort((a, b) => leadingNumber_(a.getName()) - leadingNumber_(b.getName()));
 
+  const master = SpreadsheetApp.getActiveSpreadsheet();
   const numCols = CONFIG.LAST_COLUMN - CONFIG.FIRST_COLUMN + 1;
   const totalCols = numCols + 3; // エリア列 + データ列 + シートリンク列 + URL列
   const merged = [];
   const warnings = [];
   const seenAreas = new Set();
   const addrInfo = new Map(); // 住所 -> { area, names: [マンション名, ...] }
+  const knownBlackoutKeys = loadKnownBlackoutKeys_(master);
+  const newBlackoutDetections = [];
 
   files.forEach((file, fileIdx) => {
     setProgress_(fileIdx + 1, files.length, file.getName());
@@ -131,7 +136,6 @@ function mergeAreaSheets_() {
     const backgrounds = range.getBackgrounds();
 
     let noGid = 0;
-    let blackoutFilled = 0;
 
     for (let r = 0; r < numRows; r++) {
       const keyVal = values[r][CONFIG.KEY_COLUMN_INDEX - 1];
@@ -160,7 +164,14 @@ function mergeAreaSheets_() {
       const stateIdx = CONFIG.STATE_COLUMN_INDEX; // row配列上の位置（areaName分1つ後ろにずれる）
       if (String(row[stateIdx]).trim() === '' && backgrounds[r].some(isBlackish_)) {
         row[stateIdx] = CONFIG.BLACKOUT_MARK;
-        blackoutFilled++;
+
+        // 初回検知時のみ履歴に記録する（同じ黒塗りは毎回検知されるため、既知のものは警告を出さない）
+        const idVal = display[r][CONFIG.ID_COLUMN_INDEX - 1];
+        const key = areaName + '#' + (idVal || (nameText + '|' + addrText));
+        if (!knownBlackoutKeys.has(key)) {
+          knownBlackoutKeys.add(key);
+          newBlackoutDetections.push({ key: key, area: areaName, name: nameText, addr: addrText });
+        }
       }
 
       // I列・J列: マンション名のリンクからgidを取り出し、シートへの完全URLを生成
@@ -185,13 +196,9 @@ function mergeAreaSheets_() {
     if (noGid > 0) {
       warnings.push('リンクなし ' + noGid + '件: ' + file.getName());
     }
-    if (blackoutFilled > 0) {
-      warnings.push('黒塗りを拒否として反映 ' + blackoutFilled + '件: ' + file.getName());
-    }
   });
 
   // 出力
-  const master = SpreadsheetApp.getActiveSpreadsheet();
   let out = master.getSheetByName(CONFIG.OUTPUT_SHEET_NAME);
   if (!out) out = master.insertSheet(CONFIG.OUTPUT_SHEET_NAME);
   out.clearContents();
@@ -217,6 +224,14 @@ function mergeAreaSheets_() {
       const statusLabel = item.status === 'OK' ? 'ジオコーディング成功' : 'ジオコーディング失敗・要手動入力';
       warnings.push('　・' + item.area + ' / ' + item.names.join('、') + ' / ' + item.addr + '（' + statusLabel + '）');
     });
+  }
+
+  if (newBlackoutDetections.length > 0) {
+    warnings.push('黒塗りを拒否として新規反映: ' + newBlackoutDetections.length + '件');
+    newBlackoutDetections.forEach(item => {
+      warnings.push('　・' + item.area + ' / ' + item.name + ' / ' + item.addr);
+    });
+    saveBlackoutKeys_(master, newBlackoutDetections);
   }
 
   const summaryLine = '統合完了: ' + merged.length + ' 行';
@@ -296,6 +311,40 @@ function logUpdateHistory_(master, summaryLine, warnings) {
   history.appendRow([new Date(), summaryLine]);
   warnings.forEach(w => history.appendRow(['', '・' + w]));
   history.appendRow(['', '']); // 実行ごとの区切り
+}
+
+/**
+ * 「黒塗り検知記録」シートから、これまでに検知済みのキー（エリア#ID等）一覧を読み込む。
+ * シートが無ければ空のSetを返す（=すべて初回検知として扱われる）。
+ */
+function loadKnownBlackoutKeys_(master) {
+  const sheet = master.getSheetByName(CONFIG.BLACKOUT_LOG_SHEET_NAME);
+  const keys = new Set();
+  if (!sheet) return keys;
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow >= 2) {
+    sheet.getRange(2, 1, lastRow - 1, 1).getValues().forEach(r => {
+      if (r[0]) keys.add(r[0]);
+    });
+  }
+  return keys;
+}
+
+/**
+ * 新規に検知した黒塗り拒否の明細を「黒塗り検知記録」シートへ追記する。
+ * 次回以降の実行では、ここに記録されたキーは既知として扱われ、警告を出さなくなる。
+ */
+function saveBlackoutKeys_(master, newDetections) {
+  let sheet = master.getSheetByName(CONFIG.BLACKOUT_LOG_SHEET_NAME);
+  if (!sheet) {
+    sheet = master.insertSheet(CONFIG.BLACKOUT_LOG_SHEET_NAME);
+    sheet.appendRow(['キー', 'エリア', 'マンション名', '住所', '検知日時']);
+  }
+
+  const now = new Date();
+  const rows = newDetections.map(item => [item.key, item.area, item.name, item.addr, now]);
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
 }
 
 /**
