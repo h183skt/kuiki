@@ -36,6 +36,10 @@ const CONFIG = {
   STATE_COLUMN_INDEX: 7,   // 拒否列の位置（範囲内の位置。7 = G列「拒否」）
   BLACKOUT_MARK: '〇',      // 黒塗り検知時に拒否列へ書き込む文字
 
+  // 座標キャッシュ同期（統合シートにある住所で、座標キャッシュに無いものを追加する）
+  ADDR_COLUMN_INDEX: 4,          // 住所列の位置（範囲内の位置。4 = D列「住所」）
+  CACHE_SHEET_NAME: '座標キャッシュ', // webapp.gs の WEBAPP.CACHE_SHEET と同名
+
   OUTPUT_SHEET_NAME: '統合', // 出力先シート名（毎回全消去して書き直します）
   HISTORY_SHEET_NAME: '更新履歴', // 実行日時・内容を記録するシート（追記式）
 };
@@ -70,6 +74,7 @@ function mergeAreaSheets() {
   const merged = [];
   const warnings = [];
   const seenAreas = new Set();
+  const addrInfo = new Map(); // 住所 -> { area, names: [マンション名, ...] }
 
   files.forEach(file => {
     const fileName = file.getName();
@@ -134,6 +139,13 @@ function mergeAreaSheets() {
         }
       }
 
+      const addrText = display[r][CONFIG.ADDR_COLUMN_INDEX - 1];
+      const nameText = display[r][CONFIG.KEY_COLUMN_INDEX - 1];
+      if (addrText) {
+        if (!addrInfo.has(addrText)) addrInfo.set(addrText, { area: areaName, names: [] });
+        addrInfo.get(addrText).names.push(nameText);
+      }
+
       // 拒否列が未記入でも、行内に黒塗りセルがあれば訪問拒否として扱う
       const stateIdx = CONFIG.STATE_COLUMN_INDEX; // row配列上の位置（areaName分1つ後ろにずれる）
       if (String(row[stateIdx]).trim() === '' && backgrounds[r].some(isBlackish_)) {
@@ -188,6 +200,15 @@ function mergeAreaSheets() {
     out.getRange(2, 1, merged.length, totalCols).setValues(merged);
   }
 
+  const cacheAdded = syncCoordCache_(master, addrInfo);
+  if (cacheAdded.length > 0) {
+    warnings.push('座標キャッシュに新規住所を追加: ' + cacheAdded.length + '件');
+    cacheAdded.forEach(item => {
+      const statusLabel = item.status === 'OK' ? 'ジオコーディング成功' : 'ジオコーディング失敗・要手動入力';
+      warnings.push('　・' + item.area + ' / ' + item.names.join('、') + ' / ' + item.addr + '（' + statusLabel + '）');
+    });
+  }
+
   const summaryLine = '統合完了: ' + merged.length + ' 行';
   logUpdateHistory_(master, summaryLine, warnings);
 
@@ -215,6 +236,61 @@ function logUpdateHistory_(master, summaryLine, warnings) {
   history.appendRow([new Date(), summaryLine]);
   warnings.forEach(w => history.appendRow(['', '・' + w]));
   history.appendRow(['', '']); // 実行ごとの区切り
+}
+
+/**
+ * 統合シートに登場する住所のうち、座標キャッシュにまだ無いものを追記する。
+ * 追加時に Maps.newGeocoder() でジオコーディングし、成功すれば緯度・経度・状態(OK)を、
+ * 失敗すれば空欄・状態(NG)で追加する（NGの場合は従来通り手動で座標を補う想定）。
+ * シートが無ければ見出し付きで新規作成する。
+ * 戻り値: 追加した明細の配列 [{area, names, addr, status}, ...]
+ */
+function syncCoordCache_(master, addrInfo) {
+  let cache = master.getSheetByName(CONFIG.CACHE_SHEET_NAME);
+  if (!cache) {
+    cache = master.insertSheet(CONFIG.CACHE_SHEET_NAME);
+    cache.appendRow(['住所', '緯度', '経度', '状態']);
+  }
+
+  const existing = new Set();
+  const lastRow = cache.getLastRow();
+  if (lastRow >= 2) {
+    cache.getRange(2, 1, lastRow - 1, 1).getValues().forEach(r => {
+      if (r[0]) existing.add(r[0]);
+    });
+  }
+
+  const added = [];
+  const rowsToAdd = [];
+  addrInfo.forEach((info, addr) => {
+    if (existing.has(addr)) return;
+    const geo = geocodeAddress_(addr);
+    rowsToAdd.push([addr, geo.lat, geo.lng, geo.status]);
+    added.push({ area: info.area, names: info.names, addr: addr, status: geo.status });
+  });
+
+  if (rowsToAdd.length > 0) {
+    cache.getRange(cache.getLastRow() + 1, 1, rowsToAdd.length, 4).setValues(rowsToAdd);
+  }
+
+  return added;
+}
+
+/**
+ * Apps Script 組み込みの Maps サービスで住所から緯度・経度を取得する。
+ * 失敗時（該当なし・通信エラーなど）は状態 NG（緯度・経度は空欄）を返す。
+ */
+function geocodeAddress_(address) {
+  try {
+    const res = Maps.newGeocoder().setRegion('jp').geocode(address);
+    if (res && res.status === 'OK' && res.results && res.results.length > 0) {
+      const loc = res.results[0].geometry.location;
+      return { lat: loc.lat, lng: loc.lng, status: 'OK' };
+    }
+  } catch (e) {
+    // 通信エラー等はNG扱いにしてフォールスルー
+  }
+  return { lat: '', lng: '', status: 'NG' };
 }
 
 /**

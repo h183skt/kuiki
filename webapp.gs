@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.4',
+  VERSION: 'v1.11.5',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -1020,6 +1020,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notes=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.5: マスター更新時に、座標キャッシュに無い住所を自動でジオコーディングして追加し、追加内容（エリア・マンション名・住所）を更新履歴に記録する機能を追加。\\n" +' +
     '      "・v1.11.4: マンション一覧の黒塗りセルから訪問拒否を自動検知してマスターへ反映し、拒否の建物は地図上に×アイコンで表示する機能を追加。\\n" +' +
     '      "・v1.11.3: マスター更新（今すぐ更新）実行時に、実行日時と結果を「更新履歴」シートへ自動記録する機能を追加。\\n" +' +
     '      "・v1.11.2: 高速動作を優先し、保護シートについても地図上ピン表示の仕様を維持（バージョン管理更新）。\\n" +' +
