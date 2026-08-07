@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.2',
+  VERSION: 'v1.11.3',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -1015,6 +1015,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notes=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.3: マスター更新（今すぐ更新）実行時に、実行日時と結果を「更新履歴」シートへ自動記録する機能を追加。\\n" +' +
     '      "・v1.11.2: 高速動作を優先し、保護シートについても地図上ピン表示の仕様を維持（バージョン管理更新）。\\n" +' +
     '      "・v1.11.1: 保護された記録シートをアプリから開いたり保存したりできないように変更。\\n" +' +
     '      "・v1.11.0: 訪問記録モーダルの下部に徒歩・自転車・車でのルート案内ボタンを追加。\\n" +' +

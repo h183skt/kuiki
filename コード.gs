@@ -33,6 +33,7 @@ const CONFIG = {
   URL_COLUMN_HEADER: 'URL',      // J列の見出し
 
   OUTPUT_SHEET_NAME: '統合', // 出力先シート名（毎回全消去して書き直します）
+  HISTORY_SHEET_NAME: '更新履歴', // 実行日時・内容を記録するシート（追記式）
 };
 
 /** シートを開いたときにメニューを追加 */
@@ -171,13 +172,33 @@ function mergeAreaSheets() {
     out.getRange(2, 1, merged.length, totalCols).setValues(merged);
   }
 
-  const msg = '統合完了: ' + merged.length + ' 行\n' +
+  const summaryLine = '統合完了: ' + merged.length + ' 行';
+  logUpdateHistory_(master, summaryLine, warnings);
+
+  const msg = summaryLine + '\n' +
     (warnings.length ? '警告:\n' + warnings.join('\n') : '警告なし');
   try {
     SpreadsheetApp.getUi().alert(msg);
   } catch (e) {
     Logger.log(msg);
   }
+}
+
+/**
+ * 「更新履歴」シートに実行日時と結果を追記する。
+ * シートが無ければ見出し付きで新規作成する。
+ * 1回の実行内容は複数行にまたがってよい（サマリー行＋警告ごとの行＋区切りの空行）。
+ */
+function logUpdateHistory_(master, summaryLine, warnings) {
+  let history = master.getSheetByName(CONFIG.HISTORY_SHEET_NAME);
+  if (!history) {
+    history = master.insertSheet(CONFIG.HISTORY_SHEET_NAME);
+    history.appendRow(['日時', '内容']);
+  }
+
+  history.appendRow([new Date(), summaryLine]);
+  warnings.forEach(w => history.appendRow(['', '・' + w]));
+  history.appendRow(['', '']); // 実行ごとの区切り
 }
 
 /**
