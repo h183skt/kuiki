@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.9',
+  VERSION: 'v1.11.10',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -588,6 +588,15 @@ function getAppData() {
   }
 }
 
+/**
+ * 現在デプロイされているWebアプリのバージョンを返す。
+ * クライアントが起動時に読み込んだバージョン（CURRENT_VERSION）と比較し、
+ * 更新の有無を判定するために使う。
+ */
+function getServerVersion() {
+  return WEBAPP.VERSION;
+}
+
 function urlFromFormula_(formula) {
   if (!formula) return '';
 
@@ -608,6 +617,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.topbar{display:flex;align-items:center;gap:8px;margin-bottom:8px;}' +
     'h1{font-size:16px;margin:0;flex:1;}' +
     '.ver{font-size:11px;color:var(--sub);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-right:4px;white-space:nowrap;cursor:pointer;user-select:none;}' +
+    '.ver.update-available{color:#fff;background:#d93025;border-color:#d93025;font-weight:700;}' +
     '.ver:active{opacity:0.6;}' +
     '.toggle{display:flex;border:1px solid var(--accent);border-radius:8px;overflow:hidden;}' +
     '.toggle button{font-size:13px;padding:6px 14px;border:0;background:var(--card);color:var(--accent);}' +
@@ -724,6 +734,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'const RESULTS=' + resultsJson + ';' +
     'const APP_ICON="' + WEBAPP.ICON_URL + '";' +
     'const WEBAPP_URL="' + webappUrl + '";' +
+    'const CURRENT_VERSION="' + WEBAPP.VERSION + '";' +
     'const DEFC="' + WEBAPP.DEFAULT_COLOR + '";' +
     'let USER_EMAIL="";' +
     'const STANDALONE=(navigator.standalone===true)||window.matchMedia("(display-mode: standalone)").matches;' +
@@ -956,6 +967,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '      }' +
     '      document.getElementById("login-screen").style.display = "none";' +
     '      initApp();' +
+    '      checkForUpdate_();' +
+    '      setInterval(checkForUpdate_, 600000);' +
     '    } else {' +
     '      if(loadingEl) loadingEl.style.display = "none";' +
     '      const errMsg = res ? res.error : "ログインに失敗しました。";' +
@@ -996,7 +1009,13 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '    a.remove();' +
     '  }' +
     '}' +
-    
+    'function checkForUpdate_(){' +
+    '  const btn=document.getElementById("btnVersion");' +
+    '  google.script.run.withSuccessHandler(latest=>{' +
+    '    if(btn)btn.classList.toggle("update-available", !!latest && latest!==CURRENT_VERSION);' +
+    '  }).withFailureHandler(()=>{}).getServerVersion();' +
+    '}' +
+
     // アプリ起動時の自動ログイン
     'window.onload = () => {' +
     '  attemptLogin();' +
@@ -1031,8 +1050,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'const btnVersion=document.getElementById("btnVersion");' +
     'if(btnVersion){' +
     '  btnVersion.onclick=()=>{' +
-    '    const notes=' +
+    '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.10: 新しいバージョンが公開されると、画面上部のバージョン表示が赤くなり、タップすると更新内容と再起動確認を表示する機能を追加。\\n" +' +
     '      "・v1.11.9: 地図ピンの「訪問記録を開く」ボタンを、訪問拒否の建物ではグレーアウトして遷移できないように変更。\\n" +' +
     '      "・v1.11.8: 保護された記録シートについて、編集権限が無いユーザーでも閲覧はできるように変更（保存は引き続きブロック）。\\n" +' +
     '      "・v1.11.7: 黒塗り検知による訪問拒否の反映を、初回検知時のみ更新履歴に記録するよう変更（同じ検知が毎回記録される問題を解消）。\\n" +' +
@@ -1064,9 +1084,14 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '      "・v1.7.3: URLパラメータによる自動ログイン（key, email）に対応。\\n" +' +
     '      "・v1.7.2: 訪問記録シートの読み込み・保存の動作不具合（ヘッダーエラー）を修正し、本来の1部屋2行パーサーに復元。世帯ピンの色（赤）を復元。\\n\\n" +' +
     '      "アプリを再起動（最新状態へ更新）しますか？";' +
-    '    if(confirm(notes)){' +
-    '      safeReload();' +
-    '    }' +
+    '    google.script.run.withSuccessHandler(latest=>{' +
+    '      const head=(latest&&latest!==CURRENT_VERSION)' +
+    '        ?"🆕 最新の更新があります（お使いのバージョン: "+CURRENT_VERSION+" → 最新: "+latest+"）\\n\\n"' +
+    '        :"✅ お使いのバージョンは最新です。\\n\\n";' +
+    '      if(confirm(head+notesBody)){safeReload();}' +
+    '    }).withFailureHandler(()=>{' +
+    '      if(confirm(notesBody)){safeReload();}' +
+    '    }).getServerVersion();' +
     '  };' +
     '}' +
     '</script></body></html>';
