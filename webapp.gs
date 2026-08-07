@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.7',
+  VERSION: 'v1.11.8',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -445,13 +445,17 @@ function openSheetByUrl_(url, purpose) {
     sheet = ss.getSheets()[0];
   }
 
-  assertSheetIsNotProtected_(sheet);
+  if (purpose === 'write') {
+    assertSheetIsNotProtected_(sheet);
+  }
   return sheet;
 }
 
 /**
  * Google スプレッドシート上で対象タブ全体に現在の利用者が編集できない保護が
- * 設定されている場合、閲覧目的でもアプリにはデータを返さない。
+ * 設定されている場合、保存（write）はアプリから行わせない。
+ * 保護はGoogle Sheets側でも編集のみを禁止し閲覧は妨げないため、
+ * 閲覧（read）目的では呼び出さない（openSheetByUrl_ 参照）。
  * 警告のみの保護は編集を禁止する設定ではないため対象外とする。
  */
 function assertSheetIsNotProtected_(sheet) {
@@ -1026,6 +1030,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notes=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.8: 保護された記録シートについて、編集権限が無いユーザーでも閲覧はできるように変更（保存は引き続きブロック）。\\n" +' +
     '      "・v1.11.7: 黒塗り検知による訪問拒否の反映を、初回検知時のみ更新履歴に記録するよう変更（同じ検知が毎回記録される問題を解消）。\\n" +' +
     '      "・v1.11.6: マスター更新中の進行状況を、シート画面のトースト通知とWebアプリの「マスター更新」ボタン表示（件数）で確認できるように変更。\\n" +' +
     '      "・v1.11.5: マスター更新時に、座標キャッシュに無い住所を自動でジオコーディングして追加し、追加内容（エリア・マンション名・住所）を更新履歴に記録する機能を追加。\\n" +' +
