@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.3',
+  VERSION: 'v1.11.4',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -564,6 +564,7 @@ function getAppData() {
           name: name,
           type: display[r][WEBAPP.COL_TYPE - 1],
           addr: addr,
+          state: display[r][WEBAPP.COL_STATE - 1],
           url: display[r][WEBAPP.COL_URL - 1],
           map: urlFromFormula_(formulas[r][WEBAPP.COL_MAP - 1]),
           lat: c ? c[0] : null,
@@ -643,6 +644,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.me-pulse{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:rgba(52,168,83,.9);animation:mepulse 1.6s ease-out infinite;}' +
     '@keyframes mepulse{0%{box-shadow:0 0 0 0 rgba(52,168,83,.6);}100%{box-shadow:0 0 0 22px rgba(52,168,83,0);}}' +
     '.me-emoji{position:absolute;left:50%;bottom:0;transform:translateX(-50%);font-size:34px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));}' +
+    '.refuse-pin{width:20px;height:20px;border-radius:50%;background:#202124;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);color:#fff;font-weight:800;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;}' +
     '.empty{text-align:center;color:var(--sub);padding:40px 0;}' +
     '#rec{position:fixed;inset:0;background:var(--card);z-index:2000;display:none;}' +
     '#recinner{position:absolute;inset:0;background:var(--card);padding:12px 0 0 0;display:flex;flex-direction:column;max-height:100vh;}' +
@@ -811,7 +813,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' Object.keys(groups).forEach(key=>{const items=groups[key];const first=items[0];pts.push([first.lat,first.lng]);' +
     '  const isMulti=items.length>1;let col=COLORS[first.type]||DEFC;' +
     '  if(isMulti){const types=new Set(items.map(x=>x.type));if(types.size>1){col=COLORS["混在"]||"#f9ab00";}}' +
-    '  const mk=L.circleMarker([first.lat,first.lng],{radius:9,color:"#fff",weight:2,fillColor:col,fillOpacity:0.95});' +
+    '  const isRefused=items.every(x=>!!x.state);' +
+    '  const mk=isRefused' +
+    '   ?L.marker([first.lat,first.lng],{icon:L.divIcon({className:"",html:"<div class=refuse-pin>×</div>",iconSize:[20,20],iconAnchor:[10,10]})})' +
+    '   :L.circleMarker([first.lat,first.lng],{radius:9,color:"#fff",weight:2,fillColor:col,fillOpacity:0.95});' +
     '  const dirBase="https://www.google.com/maps/dir/?api=1&destination="+first.lat+","+first.lng+"&travelmode=";' +
     '  const dirBtns="<div class=dirrow>"+' +
     '   "<a class=dirlink href=\\""+dirBase+"walking\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\udeb6 徒歩</a>"+' +
@@ -1015,6 +1020,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notes=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.4: マンション一覧の黒塗りセルから訪問拒否を自動検知してマスターへ反映し、拒否の建物は地図上に×アイコンで表示する機能を追加。\\n" +' +
     '      "・v1.11.3: マスター更新（今すぐ更新）実行時に、実行日時と結果を「更新履歴」シートへ自動記録する機能を追加。\\n" +' +
     '      "・v1.11.2: 高速動作を優先し、保護シートについても地図上ピン表示の仕様を維持（バージョン管理更新）。\\n" +' +
     '      "・v1.11.1: 保護された記録シートをアプリから開いたり保存したりできないように変更。\\n" +' +

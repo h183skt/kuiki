@@ -32,6 +32,10 @@ const CONFIG = {
   LINK_TEXT: 'シートへ',          // I列に表示する文字
   URL_COLUMN_HEADER: 'URL',      // J列の見出し
 
+  // 訪問拒否の黒塗り検知（マンション一覧の行に黒背景セルがあれば拒否扱いにする）
+  STATE_COLUMN_INDEX: 7,   // 拒否列の位置（範囲内の位置。7 = G列「拒否」）
+  BLACKOUT_MARK: '〇',      // 黒塗り検知時に拒否列へ書き込む文字
+
   OUTPUT_SHEET_NAME: '統合', // 出力先シート名（毎回全消去して書き直します）
   HISTORY_SHEET_NAME: '更新履歴', // 実行日時・内容を記録するシート（追記式）
 };
@@ -109,8 +113,10 @@ function mergeAreaSheets() {
     const display = range.getDisplayValues();
     const richText = range.getRichTextValues();
     const formulas = range.getFormulas();
+    const backgrounds = range.getBackgrounds();
 
     let noGid = 0;
+    let blackoutFilled = 0;
 
     for (let r = 0; r < numRows; r++) {
       const keyVal = values[r][CONFIG.KEY_COLUMN_INDEX - 1];
@@ -126,6 +132,13 @@ function mergeAreaSheets() {
         } else {
           row.push(values[r][c]);
         }
+      }
+
+      // 拒否列が未記入でも、行内に黒塗りセルがあれば訪問拒否として扱う
+      const stateIdx = CONFIG.STATE_COLUMN_INDEX; // row配列上の位置（areaName分1つ後ろにずれる）
+      if (String(row[stateIdx]).trim() === '' && backgrounds[r].some(isBlackish_)) {
+        row[stateIdx] = CONFIG.BLACKOUT_MARK;
+        blackoutFilled++;
       }
 
       // I列・J列: マンション名のリンクからgidを取り出し、シートへの完全URLを生成
@@ -149,6 +162,9 @@ function mergeAreaSheets() {
 
     if (noGid > 0) {
       warnings.push('リンクなし ' + noGid + '件: ' + file.getName());
+    }
+    if (blackoutFilled > 0) {
+      warnings.push('黒塗りを拒否として反映 ' + blackoutFilled + '件: ' + file.getName());
     }
   });
 
@@ -199,6 +215,18 @@ function logUpdateHistory_(master, summaryLine, warnings) {
   history.appendRow([new Date(), summaryLine]);
   warnings.forEach(w => history.appendRow(['', '・' + w]));
   history.appendRow(['', '']); // 実行ごとの区切り
+}
+
+/**
+ * 背景色が黒、またはそれに近い暗色かどうかを判定する（訪問拒否の黒塗り検知用）。
+ * 白や色なし（#ffffff）は対象外。
+ */
+function isBlackish_(hex) {
+  const m = String(hex).match(/^#([0-9a-fA-F]{6})$/);
+  if (!m) return false;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return (r + g + b) / 3 < 60;
 }
 
 /**
