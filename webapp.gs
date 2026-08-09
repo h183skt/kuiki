@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.10',
+  VERSION: 'v1.11.11',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -81,7 +81,7 @@ function getVisitRecords(url) {
     // openSheetByUrl_() でスプレッドシートを開く際、権限がなければ自動でエラーが発生し、
     // catch ブロックの friendlySheetAccessError_() で検知されて適切なメッセージになります。
 
-    const sheet = openSheetByUrl_(url, 'read');
+    const sheet = openSheetByUrl_(url);
     if (!sheet) {
       return {
         ok: false,
@@ -199,7 +199,7 @@ function saveVisitRecord(p) {
     // Google認証 (USER_ACCESSING) のため、hasPermissionToSheet_() は不要。
     // openSheetByUrl_() でエラーが発生すれば catch ブロックで処理されます。
 
-    const sheet = openSheetByUrl_(p.url, 'write');
+    const sheet = openSheetByUrl_(p.url);
     if (!sheet) {
       return {
         ok: false,
@@ -373,9 +373,6 @@ function isValidAccess_(email) {
 
 function friendlySheetAccessError_(e, mode) {
   const msg = String(e);
-  if (msg.indexOf('PROTECTED_SHEET') !== -1) {
-    return 'この記録シートは保護されているため、アプリからは開けません。保護の解除が必要な場合は、スプレッドシートのオーナーに連絡してください。';
-  }
   if (msg.indexOf('権限') !== -1 || msg.toLowerCase().indexOf('permission') !== -1 || msg.toLowerCase().indexOf('access') !== -1) {
     return '個別スプレッドシートの閲覧・編集権限がありません。Googleドライブ上でアクセス権が共有されているか管理者に確認してください。';
   }
@@ -423,7 +420,7 @@ function getAllowedSheetKeys_() {
   return result;
 }
 
-function openSheetByUrl_(url, purpose) {
+function openSheetByUrl_(url) {
   const ids = parseSheetUrl_(url);
   if (!ids) return null;
 
@@ -445,28 +442,7 @@ function openSheetByUrl_(url, purpose) {
     sheet = ss.getSheets()[0];
   }
 
-  if (purpose === 'write') {
-    assertSheetIsNotProtected_(sheet);
-  }
   return sheet;
-}
-
-/**
- * Google スプレッドシート上で対象タブ全体に現在の利用者が編集できない保護が
- * 設定されている場合、保存（write）はアプリから行わせない。
- * 保護はGoogle Sheets側でも編集のみを禁止し閲覧は妨げないため、
- * 閲覧（read）目的では呼び出さない（openSheetByUrl_ 参照）。
- * 警告のみの保護は編集を禁止する設定ではないため対象外とする。
- */
-function assertSheetIsNotProtected_(sheet) {
-  const protections = sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET);
-
-  for (let i = 0; i < protections.length; i++) {
-    const protection = protections[i];
-    if (!protection.isWarningOnly() && !protection.canEdit()) {
-      throw new Error('PROTECTED_SHEET');
-    }
-  }
 }
 
 function parseSheetUrl_(url) {
@@ -1052,6 +1028,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.11: 保護シート判定の誤検知を修正し、除外範囲などで実際は編集可能な記録シートも正しく保存できるように変更。\\n" +' +
     '      "・v1.11.10: 新しいバージョンが公開されると、画面上部のバージョン表示が赤くなり、タップすると更新内容と再起動確認を表示する機能を追加。\\n" +' +
     '      "・v1.11.9: 地図ピンの「訪問記録を開く」ボタンを、訪問拒否の建物ではグレーアウトして遷移できないように変更。\\n" +' +
     '      "・v1.11.8: 保護された記録シートについて、編集権限が無いユーザーでも閲覧はできるように変更（保存は引き続きブロック）。\\n" +' +
