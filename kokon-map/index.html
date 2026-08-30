@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="東京・神奈川の古地図と過去の空中写真を切り替えて見比べる地図ビューア">
+<title>古今マップ｜東京・神奈川の古地図・空中写真ビューア</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='88'>🗺️</text></svg>">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --bg:#f4f6f8; --card:#fff; --line:#dfe3e8; --text:#1b1f24; --sub:#5b6470;
+  --accent:#1a73e8; --accent-weak:#e8f0fe; --warn:#b3541e; --ok:#137333; --ng:#c5221f;
+  --shadow:0 2px 10px rgba(15,23,32,.14);
+  --bar-h:52px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#14181d; --card:#1c2127; --line:#2e353d; --text:#e8eaed; --sub:#9aa4b0;
+    --accent:#8ab4f8; --accent-weak:#20304a; --ok:#7cc98e; --ng:#f28b82; --warn:#e8b07a;
+    --shadow:0 2px 12px rgba(0,0,0,.5);
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;height:100%;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;
+  background:var(--bg);color:var(--text);overflow:hidden;
+}
+button,input,select{font-family:inherit;color:inherit;}
+button{cursor:pointer;}
+
+#app{display:flex;flex-direction:column;height:100dvh;}
+
+/* ---------- top bar ---------- */
+#bar{
+  flex:0 0 auto;height:var(--bar-h);display:flex;align-items:center;gap:8px;
+  padding:0 10px;background:var(--card);border-bottom:1px solid var(--line);
+  z-index:1200;padding-top:env(safe-area-inset-top);
+}
+#bar h1{font-size:15px;margin:0;white-space:nowrap;letter-spacing:.02em;}
+#bar h1 small{display:block;font-size:10px;font-weight:400;color:var(--sub);letter-spacing:0;}
+.tbtn{
+  display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+  font-size:13px;font-weight:600;padding:7px 11px;border-radius:9px;
+  border:1px solid var(--line);background:var(--card);color:var(--text);
+}
+.tbtn:hover{border-color:var(--accent);color:var(--accent);}
+.tbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.tbtn .ic{font-size:14px;line-height:1;}
+#searchForm{display:flex;flex:1 1 260px;max-width:340px;gap:0;min-width:0;}
+#q{
+  flex:1;min-width:0;font-size:14px;padding:7px 11px;border:1px solid var(--line);
+  border-right:0;border-radius:9px 0 0 9px;background:var(--bg);
+}
+#q:focus{outline:2px solid var(--accent);outline-offset:-2px;}
+#searchBtn{border-radius:0 9px 9px 0;border-left:0;}
+.spacer{flex:1 1 auto;}
+
+/* ---------- map ---------- */
+#mapwrap{flex:1 1 auto;position:relative;min-height:0;}
+#map{position:absolute;inset:0;background:#dfe3e8;}
+@media (prefers-color-scheme:dark){#map{background:#22272e;}}
+.leaflet-container{font-family:inherit;}
+.leaflet-control-attribution{font-size:10px;max-width:min(92vw,760px);}
+
+#badge{
+  position:absolute;left:10px;top:10px;z-index:800;pointer-events:none;
+  background:var(--card);border:1px solid var(--line);border-radius:10px;
+  box-shadow:var(--shadow);padding:7px 11px;max-width:min(72vw,420px);
+}
+#badge .bmain{font-size:13.5px;font-weight:700;line-height:1.3;}
+#badge .bsub{font-size:11px;color:var(--sub);margin-top:2px;line-height:1.35;}
+
+#hint{
+  position:absolute;left:50%;transform:translateX(-50%);bottom:14px;z-index:800;
+  background:var(--warn);color:#fff;font-size:12px;font-weight:600;
+  padding:7px 13px;border-radius:999px;box-shadow:var(--shadow);display:none;max-width:88vw;text-align:center;
+}
+#toast{
+  position:absolute;left:50%;transform:translateX(-50%);top:64px;z-index:1500;
+  background:rgba(24,28,34,.92);color:#fff;font-size:13px;font-weight:600;
+  padding:9px 16px;border-radius:999px;opacity:0;transition:opacity .22s;pointer-events:none;max-width:86vw;text-align:center;
+}
+#toast.show{opacity:1;}
+
+/* ---------- compare divider ---------- */
+#divider{position:absolute;top:0;bottom:0;width:4px;margin-left:-2px;z-index:900;display:none;background:rgba(255,255,255,.9);box-shadow:0 0 0 1px rgba(0,0,0,.35);}
+#divider.on{display:block;}
+#divider .knob{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:40px;height:40px;border-radius:50%;background:var(--card);border:2px solid var(--accent);
+  color:var(--accent);font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;
+  cursor:ew-resize;touch-action:none;box-shadow:var(--shadow);
+}
+#divider .tag{
+  position:absolute;top:12px;font-size:11px;font-weight:700;background:var(--card);
+  border:1px solid var(--line);border-radius:8px;padding:3px 8px;white-space:nowrap;box-shadow:var(--shadow);
+}
+#divider .tag.l{right:10px;} #divider .tag.r{left:10px;}
+
+/* ---------- timeline ---------- */
+#timeline{
+  flex:0 0 auto;background:var(--card);border-top:1px solid var(--line);
+  padding:8px 12px calc(8px + env(safe-area-inset-bottom));z-index:1100;
+}
+.tlhead{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.tlhead .lbl{font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.06em;}
+.tlhead .now{font-size:13px;font-weight:800;color:var(--accent);}
+.tlnav{margin-left:auto;display:flex;gap:6px;}
+.tlnav button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:800;}
+#tlrange{width:100%;margin:0;accent-color:var(--accent);height:24px;}
+#tlticks{display:flex;justify-content:space-between;gap:2px;margin-top:-2px;overflow-x:auto;scrollbar-width:none;}
+#tlticks::-webkit-scrollbar{display:none;}
+#tlticks button{
+  flex:1 1 0;min-width:44px;font-size:10.5px;line-height:1.25;color:var(--sub);
+  background:none;border:0;padding:3px 1px;border-radius:6px;white-space:nowrap;
+}
+#tlticks button.on{color:var(--accent);font-weight:800;background:var(--accent-weak);}
+
+/* ---------- panel ---------- */
+#scrim{position:fixed;inset:0;background:rgba(10,14,18,.42);z-index:1300;display:none;}
+#scrim.on{display:block;}
+#panel{
+  position:fixed;top:0;bottom:0;left:0;width:330px;max-width:88vw;z-index:1400;
+  background:var(--card);border-right:1px solid var(--line);box-shadow:var(--shadow);
+  transform:translateX(-102%);transition:transform .24s ease;display:flex;flex-direction:column;
+}
+#panel.on{transform:none;}
+.phead{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);}
+.phead h2{font-size:15px;margin:0;flex:1;}
+.pbody{flex:1;overflow-y:auto;padding:6px 14px 28px;-webkit-overflow-scrolling:touch;}
+.sect{margin-top:16px;}
+.sect > h3{
+  font-size:11px;font-weight:800;color:var(--sub);letter-spacing:.08em;
+  margin:0 0 7px;padding-bottom:5px;border-bottom:1px solid var(--line);
+}
+.opt{display:flex;align-items:flex-start;gap:9px;padding:8px 9px;border-radius:9px;cursor:pointer;}
+.opt:hover{background:var(--bg);}
+.opt input{margin:2px 0 0;accent-color:var(--accent);flex:0 0 auto;width:16px;height:16px;}
+.opt .txt{min-width:0;}
+.opt .t1{font-size:13.5px;font-weight:600;line-height:1.3;}
+.opt .t2{font-size:11px;color:var(--sub);margin-top:2px;line-height:1.35;}
+.opt.sel{background:var(--accent-weak);}
+.opt.sel .t1{color:var(--accent);}
+.slider{display:flex;align-items:center;gap:9px;padding:4px 2px;}
+.slider input[type=range]{flex:1;accent-color:var(--accent);}
+.slider .val{font-size:12px;font-weight:700;width:44px;text-align:right;color:var(--sub);}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chips .cl{width:100%;font-size:11px;font-weight:700;color:var(--sub);margin:6px 0 1px;}
+.chips button{
+  font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);
+  background:var(--card);color:var(--text);
+}
+.chips button:hover{border-color:var(--accent);color:var(--accent);}
+.pact{display:flex;gap:8px;margin-top:18px;}
+.pact button{flex:1;font-size:12.5px;font-weight:700;padding:10px 6px;border-radius:9px;border:1px solid var(--line);background:var(--card);}
+.note{font-size:11px;color:var(--sub);line-height:1.5;margin:8px 2px 0;}
+
+/* ---------- modal ---------- */
+#modal{position:fixed;inset:0;background:rgba(10,14,18,.5);z-index:1600;display:none;align-items:center;justify-content:center;padding:16px;}
+#modal.on{display:flex;}
+#modalbox{background:var(--card);border-radius:14px;box-shadow:var(--shadow);width:min(560px,100%);max-height:86dvh;display:flex;flex-direction:column;}
+#modalhead{display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid var(--line);}
+#modalhead h2{font-size:15px;margin:0;flex:1;}
+#modalbody{padding:14px 16px 20px;overflow-y:auto;font-size:13px;line-height:1.65;}
+#modalbody a{color:var(--accent);}
+#modalbody h4{font-size:12px;color:var(--sub);letter-spacing:.06em;margin:16px 0 6px;}
+#modalbody ul{margin:0;padding-left:18px;}
+#modalbody li{margin-bottom:5px;}
+.xbtn{width:32px;height:32px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-size:17px;line-height:1;}
+.trow{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px dashed var(--line);}
+.trow .st{flex:0 0 auto;width:22px;text-align:center;font-weight:800;}
+.trow .nm{flex:1;min-width:0;font-size:12.5px;}
+.trow .id{font-size:10.5px;color:var(--sub);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+.st.ok{color:var(--ok);} .st.ng{color:var(--ng);} .st.wt{color:var(--sub);}
+
+/* ---------- search results ---------- */
+#sres{
+  position:absolute;left:10px;top:10px;z-index:1000;width:min(320px,80vw);
+  background:var(--card);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);
+  overflow:hidden;display:none;max-height:60dvh;overflow-y:auto;
+}
+#sres .rh{font-size:11px;font-weight:700;color:var(--sub);padding:9px 12px 5px;}
+#sres button{display:block;width:100%;text-align:left;font-size:13px;padding:9px 12px;border:0;border-top:1px solid var(--line);background:var(--card);}
+#sres button:hover{background:var(--accent-weak);color:var(--accent);}
+
+@media (max-width:760px){
+  :root{--bar-h:auto;}
+  #bar{flex-wrap:wrap;gap:6px;padding:7px 9px;height:auto;}
+  #bar h1{font-size:14px;order:1;}
+  #bar h1 small{display:none;}
+  #searchForm{order:9;flex:1 1 100%;max-width:none;}
+  .spacer{display:none;}
+  #panel{top:auto;right:0;bottom:0;left:0;width:auto;max-width:none;height:82dvh;
+         border-right:0;border-top:1px solid var(--line);border-radius:16px 16px 0 0;
+         transform:translateY(102%);}
+  #panel.on{transform:none;}
+  #badge{max-width:64vw;padding:6px 9px;}
+  #badge .bmain{font-size:12.5px;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header id="bar">
+    <button class="tbtn" id="btnPanel"><span class="ic">☰</span>レイヤー</button>
+    <h1>古今マップ<small>東京・神奈川の古地図／空中写真</small></h1>
+    <form id="searchForm" autocomplete="off">
+      <input id="q" type="search" placeholder="地名・住所で検索（例：横浜駅）" aria-label="地名・住所で検索">
+      <button class="tbtn" id="searchBtn" type="submit">検索</button>
+    </form>
+    <div class="spacer"></div>
+    <button class="tbtn" id="btnCompare"><span class="ic">◧</span>比較</button>
+    <button class="tbtn" id="btnLocate"><span class="ic">◎</span>現在地</button>
+    <button class="tbtn" id="btnShare"><span class="ic">⇪</span>共有</button>
+  </header>
+
+  <div id="mapwrap">
+    <div id="map"></div>
+    <div id="divider"><div class="tag l"></div><div class="tag r"></div><div class="knob">⇔</div></div>
+    <div id="badge"><div class="bmain"></div><div class="bsub"></div></div>
+    <div id="sres"></div>
+    <div id="hint"></div>
+    <div id="toast"></div>
+  </div>
+
+  <div id="timeline">
+    <div class="tlhead">
+      <span class="lbl">年代スライダー</span>
+      <span class="now" id="tlnow"></span>
+      <span class="tlnav">
+        <button id="tlprev" type="button" title="ひとつ古い年代へ">◀</button>
+        <button id="tlnext" type="button" title="ひとつ新しい年代へ">▶</button>
+      </span>
+    </div>
+    <input id="tlrange" type="range" min="0" max="0" step="1" value="0" aria-label="年代スライダー">
+    <div id="tlticks"></div>
+  </div>
+
+</div>
+
+<div id="scrim"></div>
+
+<aside id="panel" aria-label="レイヤー設定">
+  <div class="phead">
+    <h2>レイヤー</h2>
+    <button class="xbtn" id="panelClose" aria-label="閉じる">×</button>
+  </div>
+  <div class="pbody">
+
+    <div class="sect">
+      <h3>メインの地図</h3>
+      <div id="baseList"></div>
+      <div class="slider">
+        <span class="val" style="width:auto;">濃さ</span>
+        <input id="opacity" type="range" min="0" max="100" step="5" value="100" aria-label="メインレイヤーの不透明度">
+        <span class="val" id="opacityVal">100%</span>
+      </div>
+      <p class="note">薄くすると、下に敷いた淡色地図（現在の街）が透けて重なります。</p>
+    </div>
+
+    <div class="sect">
+      <h3>重ねる</h3>
+      <div id="ovList"></div>
+      <div class="slider">
+        <span class="val" style="width:auto;">濃さ</span>
+        <input id="ovOpacity" type="range" min="0" max="100" step="5" value="45" aria-label="重ねるレイヤーの不透明度">
+        <span class="val" id="ovOpacityVal">45%</span>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3>比較（左右スワイプ）</h3>
+      <div id="cmpList"></div>
+    </div>
+
+    <div class="sect">
+      <h3>東京・神奈川へ移動</h3>
+      <div class="chips" id="places"></div>
+    </div>
+
+    <div class="pact">
+      <button id="btnCheck" type="button">レイヤー動作確認</button>
+      <button id="btnCredit" type="button">出典・利用条件</button>
+    </div>
+    <p class="note" id="verNote"></p>
+  </div>
+</aside>
+
+<div id="modal">
+  <div id="modalbox">
+    <div id="modalhead"><h2 id="modalTitle"></h2><button class="xbtn" id="modalClose" aria-label="閉じる">×</button></div>
+    <div id="modalbody"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+
+var APP_VERSION = 'v0.1.0';
+
+/* ============================================================
+   1. レイヤー定義
+   ============================================================ */
+
+var ATTR_GSI  = '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>';
+var ATTR_HABS = '<a href="https://habs.rad.naro.go.jp/" target="_blank" rel="noopener">歴史的農業環境閲覧システム（農研機構）</a>';
+var ATTR_OSM  = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
+
+/* 透明1pxGIF。タイルが無い範囲は下の淡色地図が見えるようにする */
+var BLANK_TILE = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+
+function gsi(id, ext){ return 'https://cyberjapandata.gsi.go.jp/xyz/' + id + '/{z}/{x}/{y}.' + ext; }
+
+/*
+  group : base(現在の地図) / photo(現在の写真) / oldphoto(過去の空中写真) / oldmap(古地図・歴史) / terrain(地形)
+  minZ / maxNative : 配信元がタイルを持っているズーム範囲
+  year : 年代スライダー用の並び順（小さいほど古い）
+*/
+var LAYERS = [
+  /* --- 現在の地図 --- */
+  { id:'std',   group:'base',  name:'標準地図',         desc:'地理院の標準的な地図',                     url:gsi('std','png'),          minZ:2,  maxNative:18, attr:ATTR_GSI },
+  { id:'pale',  group:'base',  name:'淡色地図',         desc:'白っぽい下地。重ね合わせ向き',             url:gsi('pale','png'),         minZ:2,  maxNative:18, attr:ATTR_GSI },
+  { id:'blank', group:'base',  name:'白地図',           desc:'注記の少ない簡素な地図',                   url:gsi('blank','png'),        minZ:5,  maxNative:14, attr:ATTR_GSI },
+  { id:'osm',   group:'base',  name:'OpenStreetMap',    desc:'店舗・施設名が細かい',                     url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png', minZ:2, maxNative:19, attr:ATTR_OSM },
+
+  /* --- 現在の写真 --- */
+  { id:'seamlessphoto', group:'photo', name:'最新の空中写真', desc:'全国最新写真（シームレス）',          url:gsi('seamlessphoto','jpg'), minZ:2,  maxNative:18, attr:ATTR_GSI, year:2020 },
+  { id:'ort',           group:'photo', name:'オルソ画像',     desc:'電子国土基本図（オルソ画像）',        url:gsi('ort','jpg'),           minZ:14, maxNative:18, attr:ATTR_GSI },
+  { id:'airphoto',      group:'photo', name:'2004〜2007年',   desc:'簡易空中写真',                        url:gsi('airphoto','png'),      minZ:14, maxNative:18, attr:ATTR_GSI, year:2005 },
+
+  /* --- 過去の空中写真 --- */
+  { id:'ort_old10',  group:'oldphoto', name:'1988〜1990年', desc:'国土地理院撮影',                        url:gsi('ort_old10','png'),  minZ:14, maxNative:17, attr:ATTR_GSI, year:1989 },
+  { id:'gazo4',      group:'oldphoto', name:'1984〜1986年', desc:'国土地理院撮影',                        url:gsi('gazo4','jpg'),      minZ:14, maxNative:17, attr:ATTR_GSI, year:1985 },
+  { id:'gazo3',      group:'oldphoto', name:'1979〜1983年', desc:'国土地理院撮影',                        url:gsi('gazo3','jpg'),      minZ:14, maxNative:17, attr:ATTR_GSI, year:1981 },
+  { id:'gazo2',      group:'oldphoto', name:'1974〜1978年', desc:'国土地理院撮影。高度成長期の直後',      url:gsi('gazo2','jpg'),      minZ:14, maxNative:17, attr:ATTR_GSI, year:1976 },
+  { id:'gazo1',      group:'oldphoto', name:'1961〜1964年', desc:'国土地理院撮影。東京五輪の頃',          url:gsi('gazo1','jpg'),      minZ:14, maxNative:17, attr:ATTR_GSI, year:1962 },
+  { id:'ort_USA10',  group:'oldphoto', name:'1945〜1950年', desc:'米軍撮影。戦災の跡が写る',              url:gsi('ort_USA10','png'),  minZ:14, maxNative:17, attr:ATTR_GSI, year:1947 },
+  { id:'ort_riku10', group:'oldphoto', name:'1936〜1942年頃', desc:'陸軍撮影。関東地方が中心',            url:gsi('ort_riku10','png'), minZ:14, maxNative:17, attr:ATTR_GSI, year:1939 },
+
+  /* --- 古地図・歴史 --- */
+  { id:'habs',   group:'oldmap', name:'迅速測図（1880年代）', desc:'明治前期・関東平野の彩色地図',       url:'https://habs.rad.naro.go.jp/spatial_data/livemap/{z}/{x}/{y}.png', minZ:8, maxNative:16, attr:ATTR_HABS, year:1885 },
+  { id:'lcmfc2', group:'oldmap', name:'明治期の低湿地',       desc:'明治時代に低湿地だった範囲',         url:gsi('lcmfc2','png'),       minZ:11, maxNative:16, attr:ATTR_GSI },
+
+  /* --- 地形（重ね向き） --- */
+  { id:'hillshademap', group:'terrain', name:'陰影起伏図',   desc:'地形の凹凸を陰影で表現',              url:gsi('hillshademap','png'), minZ:2, maxNative:16, attr:ATTR_GSI },
+  { id:'relief',       group:'terrain', name:'色別標高図',   desc:'標高を色分け。低地が分かる',          url:gsi('relief','png'),       minZ:5, maxNative:15, attr:ATTR_GSI },
+  { id:'slopemap',     group:'terrain', name:'傾斜量図',     desc:'斜面の急さを濃淡で表現',              url:gsi('slopemap','png'),     minZ:3, maxNative:15, attr:ATTR_GSI }
+];
+
+var GROUP_LABEL = {
+  base:'現在の地図', photo:'現在の写真', oldphoto:'過去の空中写真',
+  oldmap:'古地図・歴史', terrain:'地形'
+};
+
+/* 年代スライダー：古い順 */
+var TIMELINE = [
+  { id:'habs',          label:'1880年代',  sub:'迅速測図' },
+  { id:'ort_riku10',    label:'1936-42',   sub:'陸軍写真' },
+  { id:'ort_USA10',     label:'1945-50',   sub:'米軍写真' },
+  { id:'gazo1',         label:'1961-64',   sub:'空中写真' },
+  { id:'gazo2',         label:'1974-78',   sub:'空中写真' },
+  { id:'gazo3',         label:'1979-83',   sub:'空中写真' },
+  { id:'gazo4',         label:'1984-86',   sub:'空中写真' },
+  { id:'ort_old10',     label:'1988-90',   sub:'空中写真' },
+  { id:'airphoto',      label:'2004-07',   sub:'簡易写真' },
+  { id:'seamlessphoto', label:'最新',      sub:'空中写真' },
+  { id:'std',           label:'現在',      sub:'標準地図' }
+];
+
+/* 重ねられるレイヤー */
+var OVERLAY_IDS = ['hillshademap','relief','slopemap','lcmfc2','std','pale'];
+
+/* 東京・神奈川のクイックジャンプ */
+var PLACES = [
+  { pref:'東京', items:[
+    ['東京駅',35.6812,139.7671],['新宿',35.6896,139.7006],['渋谷',35.6580,139.7016],
+    ['浅草',35.7148,139.7967],['東京タワー',35.6586,139.7454],['お台場',35.6297,139.7756],
+    ['豊洲',35.6551,139.7967],['羽田空港',35.5494,139.7798],['立川',35.6979,139.4137],
+    ['八王子',35.6558,139.3389],['多摩センター',35.6250,139.4237],['町田',35.5423,139.4467]
+  ]},
+  { pref:'神奈川', items:[
+    ['横浜駅',35.4658,139.6222],['みなとみらい',35.4562,139.6380],['川崎',35.5308,139.6970],
+    ['新横浜',35.5079,139.6173],['鎌倉',35.3192,139.5504],['江の島',35.2993,139.4805],
+    ['藤沢',35.3390,139.4879],['横須賀中央',35.2814,139.6720],['相模原',35.5711,139.3735],
+    ['本厚木',35.4413,139.3654],['小田原',35.2564,139.1553],['箱根湯本',35.2323,139.1063]
+  ]}
+];
+
+var DEFAULT_VIEW = { lat:35.6812, lng:139.7671, zoom:15, base:'gazo1' };
+
+/* ============================================================
+   2. 状態と地図の初期化
+   ============================================================ */
+
+var byId = {};
+LAYERS.forEach(function(l){ byId[l.id] = l; });
+
+var state = {
+  base: DEFAULT_VIEW.base,
+  opacity: 1,
+  overlays: [],
+  ovOpacity: 0.45,
+  compare: null,
+  compareOn: false,
+  dividerPos: 0
+};
+
+var map = L.map('map', {
+  center:[DEFAULT_VIEW.lat, DEFAULT_VIEW.lng],
+  zoom:DEFAULT_VIEW.zoom,
+  minZoom:5,
+  maxZoom:19,
+  zoomControl:false,
+  attributionControl:true
+});
+L.control.zoom({ position:'bottomright' }).addTo(map);
+L.control.scale({ imperial:false, position:'bottomleft' }).addTo(map);
+map.attributionControl.setPrefix('');
+
+/* 描画順を固定するための独自ペイン */
+map.createPane('pUnder').style.zIndex   = '200';
+map.createPane('pMain').style.zIndex    = '210';
+map.createPane('pCompare').style.zIndex = '220';
+map.createPane('pOverlay').style.zIndex = '230';
+['pUnder','pMain','pCompare','pOverlay'].forEach(function(p){
+  map.getPane(p).style.pointerEvents = 'none';
+});
+
+function makeTileLayer(def, pane, opacity){
+  return L.tileLayer(def.url, {
+    pane: pane,
+    minZoom: 5,
+    maxZoom: 19,
+    minNativeZoom: def.minZ,
+    maxNativeZoom: def.maxNative,
+    opacity: (opacity === undefined ? 1 : opacity),
+    errorTileUrl: BLANK_TILE,
+    attribution: def.attr,
+    crossOrigin: false
+  });
+}
+
+/* 常に一番下に敷く淡色地図。写真が無い範囲でも現在地が分かるようにする */
+var underLayer = makeTileLayer(byId.pale, 'pUnder', 1).addTo(map);
+
+var mainLayer = null;
+var compareLayer = null;
+var overlayLayers = {};
+
+/* ============================================================
+   3. メインレイヤー / 重ね / 比較
+   ============================================================ */
+
+function setBase(id, opts){
+  var def = byId[id];
+  if(!def) return;
+  state.base = id;
+
+  if(mainLayer) map.removeLayer(mainLayer);
+  mainLayer = makeTileLayer(def, 'pMain', state.opacity).addTo(map);
+
+  /* 下地の淡色地図は、メインが「現在の地図」系なら不要 */
+  var needUnder = (def.group !== 'base');
+  if(needUnder && !map.hasLayer(underLayer)) underLayer.addTo(map);
+  if(!needUnder && map.hasLayer(underLayer)) map.removeLayer(underLayer);
+
+  /* 配信ズーム範囲より低いズームでは何も出ないので寄せてあげる */
+  if(!(opts && opts.noZoom) && map.getZoom() < def.minZ){
+    map.setZoom(def.minZ);
+    toast('この地図はズーム' + def.minZ + '以上で表示されます');
+  }
+
+  syncUI();
+  updateClip();
+  writeHash();
+}
+
+function setOverlays(ids){
+  state.overlays = ids.slice();
+  Object.keys(overlayLayers).forEach(function(id){
+    if(ids.indexOf(id) < 0){
+      map.removeLayer(overlayLayers[id]);
+      delete overlayLayers[id];
+    }
+  });
+  ids.forEach(function(id){
+    if(!overlayLayers[id]){
+      overlayLayers[id] = makeTileLayer(byId[id], 'pOverlay', state.ovOpacity).addTo(map);
+    }
+  });
+  syncUI();
+  writeHash();
+}
+
+function setCompare(id){
+  state.compare = id || null;
+  if(compareLayer){ map.removeLayer(compareLayer); compareLayer = null; }
+  if(state.compareOn && state.compare && byId[state.compare]){
+    compareLayer = makeTileLayer(byId[state.compare], 'pCompare', 1).addTo(map);
+  }
+  syncUI();
+  updateClip();
+  writeHash();
+}
+
+function toggleCompare(on){
+  state.compareOn = (on === undefined) ? !state.compareOn : !!on;
+  if(state.compareOn && !state.compare){
+    state.compare = (byId[state.base] && byId[state.base].group === 'base') ? 'seamlessphoto' : 'std';
+  }
+  if(state.compareOn && !state.dividerPos){
+    state.dividerPos = Math.round(map.getSize().x / 2);
+  }
+  document.getElementById('divider').classList.toggle('on', state.compareOn);
+  document.getElementById('btnCompare').classList.toggle('on', state.compareOn);
+  setCompare(state.compare);
+}
+
+/* 比較レイヤーを分割線から右側だけ表示する */
+function updateClip(){
+  if(!state.compareOn || !compareLayer) return;
+  var c = compareLayer.getContainer();
+  if(!c) return;
+  var size = map.getSize();
+  var nw = map.containerPointToLayerPoint([0, 0]);
+  var se = map.containerPointToLayerPoint([size.x, size.y]);
+  var clipX = nw.x + state.dividerPos;
+  c.style.clip = 'rect(' + [nw.y, se.x, se.y, clipX].join('px,') + 'px)';
+}
+map.on('move zoom zoomend moveend resize viewreset load', updateClip);
+
+/* 分割線のドラッグ */
+(function(){
+  var divider = document.getElementById('divider');
+  var knob = divider.querySelector('.knob');
+  var dragging = false;
+
+  function place(){
+    divider.style.left = state.dividerPos + 'px';
+    updateClip();
+  }
+  function moveTo(clientX){
+    var r = document.getElementById('mapwrap').getBoundingClientRect();
+    state.dividerPos = Math.max(24, Math.min(r.width - 24, clientX - r.left));
+    place();
+  }
+  knob.addEventListener('pointerdown', function(e){
+    dragging = true;
+    knob.setPointerCapture(e.pointerId);
+    map.dragging.disable();
+    e.preventDefault();
+  });
+  knob.addEventListener('pointermove', function(e){ if(dragging) moveTo(e.clientX); });
+  function end(){ if(!dragging) return; dragging = false; map.dragging.enable(); }
+  knob.addEventListener('pointerup', end);
+  knob.addEventListener('pointercancel', end);
+
+  window.addEventListener('resize', function(){
+    var w = document.getElementById('mapwrap').getBoundingClientRect().width;
+    if(state.dividerPos > w - 24) state.dividerPos = Math.round(w / 2);
+    place();
+  });
+  window.__placeDivider = place;
+})();
+
+/* ============================================================
+   4. UI
+   ============================================================ */
+
+function el(tag, cls, html){
+  var e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(html !== undefined) e.innerHTML = html;
+  return e;
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
+
+var toastTimer = null;
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2600);
+}
+
+/* --- メインレイヤー一覧 --- */
+(function buildBaseList(){
+  var wrap = document.getElementById('baseList');
+  ['oldmap','oldphoto','photo','base'].forEach(function(g){
+    var head = el('div', null, '<div style="font-size:11px;font-weight:700;color:var(--sub);margin:10px 2px 2px;">' + GROUP_LABEL[g] + '</div>');
+    wrap.appendChild(head);
+    LAYERS.filter(function(l){ return l.group === g; }).forEach(function(l){
+      var lab = el('label', 'opt');
+      lab.dataset.base = l.id;
+      lab.innerHTML =
+        '<input type="radio" name="base" value="' + l.id + '">' +
+        '<span class="txt"><span class="t1">' + esc(l.name) + '</span>' +
+        '<span class="t2">' + esc(l.desc) + '　<span style="opacity:.75">z' + l.minZ + '〜' + l.maxNative + '</span></span></span>';
+      lab.querySelector('input').addEventListener('change', function(){ setBase(l.id); });
+      wrap.appendChild(lab);
+    });
+  });
+})();
+
+/* --- 重ねるレイヤー一覧 --- */
+(function buildOverlayList(){
+  var wrap = document.getElementById('ovList');
+  OVERLAY_IDS.forEach(function(id){
+    var l = byId[id];
+    var lab = el('label', 'opt');
+    lab.dataset.ov = id;
+    lab.innerHTML =
+      '<input type="checkbox" value="' + id + '">' +
+      '<span class="txt"><span class="t1">' + esc(l.name) + '</span>' +
+      '<span class="t2">' + esc(l.desc) + '</span></span>';
+    lab.querySelector('input').addEventListener('change', function(){
+      var ids = Array.prototype.slice
+        .call(wrap.querySelectorAll('input:checked'))
+        .map(function(i){ return i.value; });
+      setOverlays(ids);
+    });
+    wrap.appendChild(lab);
+  });
+})();
+
+/* --- 比較レイヤー一覧 --- */
+(function buildCompareList(){
+  var wrap = document.getElementById('cmpList');
+  var none = el('label', 'opt');
+  none.dataset.cmp = '';
+  none.innerHTML = '<input type="radio" name="cmp" value=""><span class="txt"><span class="t1">比較しない</span></span>';
+  none.querySelector('input').addEventListener('change', function(){ toggleCompare(false); });
+  wrap.appendChild(none);
+
+  LAYERS.forEach(function(l){
+    if(l.group === 'terrain') return;
+    var lab = el('label', 'opt');
+    lab.dataset.cmp = l.id;
+    lab.innerHTML =
+      '<input type="radio" name="cmp" value="' + l.id + '">' +
+      '<span class="txt"><span class="t1">' + esc(l.name) + '</span>' +
+      '<span class="t2">' + GROUP_LABEL[l.group] + '</span></span>';
+    lab.querySelector('input').addEventListener('change', function(){
+      state.compare = l.id;
+      toggleCompare(true);
+    });
+    wrap.appendChild(lab);
+  });
+})();
+
+/* --- 地名チップ --- */
+(function buildPlaces(){
+  var wrap = document.getElementById('places');
+  PLACES.forEach(function(p){
+    wrap.appendChild(el('div', 'cl', p.pref));
+    p.items.forEach(function(it){
+      var b = el('button', null, esc(it[0]));
+      b.type = 'button';
+      b.addEventListener('click', function(){
+        map.setView([it[1], it[2]], Math.max(map.getZoom(), 16));
+        closePanel();
+      });
+      wrap.appendChild(b);
+    });
+  });
+})();
+
+/* --- 年代スライダー --- */
+(function buildTimeline(){
+  var range = document.getElementById('tlrange');
+  var ticks = document.getElementById('tlticks');
+  range.max = String(TIMELINE.length - 1);
+  TIMELINE.forEach(function(t, i){
+    var b = el('button', null, esc(t.label) + '<br>' + esc(t.sub));
+    b.type = 'button';
+    b.dataset.i = String(i);
+    b.addEventListener('click', function(){ setBase(t.id); });
+    ticks.appendChild(b);
+  });
+  range.addEventListener('input', function(){
+    setBase(TIMELINE[Number(range.value)].id);
+  });
+  document.getElementById('tlprev').addEventListener('click', function(){ stepTimeline(-1); });
+  document.getElementById('tlnext').addEventListener('click', function(){ stepTimeline(1); });
+})();
+
+function timelineIndex(){
+  for(var i = 0; i < TIMELINE.length; i++){ if(TIMELINE[i].id === state.base) return i; }
+  return -1;
+}
+function stepTimeline(d){
+  var i = timelineIndex();
+  if(i < 0) i = TIMELINE.length - 1;
+  var n = Math.max(0, Math.min(TIMELINE.length - 1, i + d));
+  setBase(TIMELINE[n].id);
+}
+document.addEventListener('keydown', function(e){
+  if(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if(e.key === 'ArrowLeft'){ stepTimeline(-1); }
+  else if(e.key === 'ArrowRight'){ stepTimeline(1); }
+});
+
+/* --- 表示の同期 --- */
+function syncUI(){
+  var def = byId[state.base];
+
+  document.querySelectorAll('[data-base]').forEach(function(lab){
+    var on = lab.dataset.base === state.base;
+    lab.classList.toggle('sel', on);
+    lab.querySelector('input').checked = on;
+  });
+  document.querySelectorAll('[data-ov]').forEach(function(lab){
+    var on = state.overlays.indexOf(lab.dataset.ov) >= 0;
+    lab.classList.toggle('sel', on);
+    lab.querySelector('input').checked = on;
+  });
+  document.querySelectorAll('[data-cmp]').forEach(function(lab){
+    var on = state.compareOn ? (lab.dataset.cmp === state.compare) : (lab.dataset.cmp === '');
+    lab.classList.toggle('sel', on);
+    lab.querySelector('input').checked = on;
+  });
+
+  var i = timelineIndex();
+  document.getElementById('tlrange').value = String(i < 0 ? TIMELINE.length - 1 : i);
+  document.getElementById('tlnow').textContent = i < 0 ? def.name : (TIMELINE[i].label + '　' + TIMELINE[i].sub);
+  document.querySelectorAll('#tlticks button').forEach(function(b){
+    b.classList.toggle('on', Number(b.dataset.i) === i);
+  });
+
+  var bm = document.querySelector('#badge .bmain');
+  var bs = document.querySelector('#badge .bsub');
+  if(state.compareOn && state.compare){
+    bm.textContent = def.name + '　◧　' + byId[state.compare].name;
+    bs.textContent = '左：' + def.name + '／右：' + byId[state.compare].name;
+    document.querySelector('#divider .tag.l').textContent = def.name;
+    document.querySelector('#divider .tag.r').textContent = byId[state.compare].name;
+  }else{
+    bm.textContent = def.name;
+    bs.textContent = def.desc;
+  }
+
+  updateHint();
+}
+
+function updateHint(){
+  var def = byId[state.base];
+  var h = document.getElementById('hint');
+  var z = map.getZoom();
+  if(z < def.minZ){
+    h.textContent = 'ズーム' + def.minZ + '以上に拡大すると「' + def.name + '」が表示されます';
+    h.style.display = 'block';
+  }else if(def.group === 'oldphoto' || def.group === 'oldmap'){
+    h.textContent = '写っていない場所は、下に敷いた淡色地図が見えています';
+    h.style.display = 'block';
+    clearTimeout(updateHint._t);
+    updateHint._t = setTimeout(function(){ h.style.display = 'none'; }, 4200);
+  }else{
+    h.style.display = 'none';
+  }
+}
+map.on('zoomend', updateHint);
+
+/* --- 不透明度 --- */
+document.getElementById('opacity').addEventListener('input', function(){
+  state.opacity = Number(this.value) / 100;
+  document.getElementById('opacityVal').textContent = this.value + '%';
+  if(mainLayer) mainLayer.setOpacity(state.opacity);
+});
+document.getElementById('ovOpacity').addEventListener('input', function(){
+  state.ovOpacity = Number(this.value) / 100;
+  document.getElementById('ovOpacityVal').textContent = this.value + '%';
+  Object.keys(overlayLayers).forEach(function(id){ overlayLayers[id].setOpacity(state.ovOpacity); });
+});
+
+/* --- パネル開閉 --- */
+function openPanel(){
+  document.getElementById('panel').classList.add('on');
+  document.getElementById('scrim').classList.add('on');
+}
+function closePanel(){
+  document.getElementById('panel').classList.remove('on');
+  document.getElementById('scrim').classList.remove('on');
+}
+document.getElementById('btnPanel').addEventListener('click', openPanel);
+document.getElementById('panelClose').addEventListener('click', closePanel);
+document.getElementById('scrim').addEventListener('click', closePanel);
+document.getElementById('btnCompare').addEventListener('click', function(){ toggleCompare(); });
+
+/* --- モーダル --- */
+function openModal(title, html){
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalbody').innerHTML = html;
+  document.getElementById('modal').classList.add('on');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('on'); }
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modal').addEventListener('click', function(e){ if(e.target === this) closeModal(); });
+document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ closeModal(); closePanel(); } });
+
+/* ============================================================
+   5. 現在地 / 検索 / 共有
+   ============================================================ */
+
+var meMarker = null;
+document.getElementById('btnLocate').addEventListener('click', function(){
+  if(!navigator.geolocation){ toast('この端末では現在地を取得できません'); return; }
+  toast('現在地を取得しています…');
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var ll = [pos.coords.latitude, pos.coords.longitude];
+    if(meMarker) map.removeLayer(meMarker);
+    meMarker = L.circleMarker(ll, {
+      radius:8, color:'#fff', weight:3, fillColor:'#1a73e8', fillOpacity:1
+    }).addTo(map).bindPopup('現在地');
+    map.setView(ll, Math.max(map.getZoom(), 16));
+  }, function(err){
+    toast('現在地を取得できませんでした（' + err.code + '）');
+  }, { enableHighAccuracy:true, timeout:12000, maximumAge:30000 });
+});
+
+document.getElementById('searchForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var q = document.getElementById('q').value.trim();
+  if(!q) return;
+  var box = document.getElementById('sres');
+  box.innerHTML = '<div class="rh">検索中…</div>';
+  box.style.display = 'block';
+
+  fetch('https://msearch.gsi.go.jp/address-search/AddressSearch?q=' + encodeURIComponent(q))
+    .then(function(r){ return r.json(); })
+    .then(function(list){
+      if(!list || !list.length){
+        box.innerHTML = '<div class="rh">「' + esc(q) + '」は見つかりませんでした</div>';
+        return;
+      }
+      box.innerHTML = '<div class="rh">検索結果（' + Math.min(list.length, 12) + '件）</div>';
+      list.slice(0, 12).forEach(function(item){
+        var c = item.geometry && item.geometry.coordinates;
+        if(!c) return;
+        var b = el('button', null, esc(item.properties && item.properties.title || q));
+        b.type = 'button';
+        b.addEventListener('click', function(){
+          map.setView([c[1], c[0]], Math.max(map.getZoom(), 16));
+          box.style.display = 'none';
+        });
+        box.appendChild(b);
+      });
+    })
+    .catch(function(){
+      box.innerHTML = '<div class="rh">検索に失敗しました。通信環境をご確認ください。</div>';
+    });
+});
+document.getElementById('q').addEventListener('input', function(){
+  if(!this.value) document.getElementById('sres').style.display = 'none';
+});
+map.on('click', function(){ document.getElementById('sres').style.display = 'none'; });
+
+document.getElementById('btnShare').addEventListener('click', function(){
+  writeHash();
+  var url = location.href;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(function(){
+      toast('現在の表示のURLをコピーしました');
+    }, function(){ prompt('このURLを共有できます', url); });
+  }else{
+    prompt('このURLを共有できます', url);
+  }
+});
+
+/* ============================================================
+   6. URLハッシュで表示状態を保存・復元
+   ============================================================ */
+
+var hashLock = false;
+function writeHash(){
+  if(hashLock) return;
+  var c = map.getCenter();
+  var parts = [
+    map.getZoom(),
+    c.lat.toFixed(5),
+    c.lng.toFixed(5),
+    state.base
+  ];
+  var extra = [];
+  if(state.compareOn && state.compare) extra.push('c=' + state.compare);
+  if(state.overlays.length) extra.push('o=' + state.overlays.join('.'));
+  var h = '#' + parts.join('/') + (extra.length ? '&' + extra.join('&') : '');
+  if(location.hash !== h) history.replaceState(null, '', h);
+}
+function readHash(){
+  var h = location.hash.replace(/^#/, '');
+  if(!h) return false;
+  var main = h.split('&')[0].split('/');
+  var z = parseInt(main[0], 10), lat = parseFloat(main[1]), lng = parseFloat(main[2]);
+  if(!isFinite(z) || !isFinite(lat) || !isFinite(lng)) return false;
+
+  hashLock = true;
+  map.setView([lat, lng], z);
+  if(main[3] && byId[main[3]]) state.base = main[3];
+
+  h.split('&').slice(1).forEach(function(kv){
+    var k = kv.split('=')[0], v = kv.split('=')[1] || '';
+    if(k === 'c' && byId[v]){ state.compare = v; state.compareOn = true; }
+    if(k === 'o'){ state.overlays = v.split('.').filter(function(id){ return !!byId[id]; }); }
+  });
+  hashLock = false;
+  return true;
+}
+map.on('moveend zoomend', writeHash);
+
+/* ============================================================
+   7. レイヤー動作確認（配信元がタイルを返すかを実測）
+   ============================================================ */
+
+function tileXY(lat, lng, z){
+  var n = Math.pow(2, z);
+  var r = lat * Math.PI / 180;
+  return {
+    x: Math.floor((lng + 180) / 360 * n),
+    y: Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n)
+  };
+}
+
+document.getElementById('btnCheck').addEventListener('click', function(){
+  var c = map.getCenter();
+  var rows = LAYERS.map(function(l){
+    return '<div class="trow" data-t="' + l.id + '">' +
+             '<span class="st wt">…</span>' +
+             '<span class="nm">' + esc(l.name) +
+               '<span class="id"> ' + esc(l.id) + '</span></span>' +
+           '</div>';
+  }).join('');
+  openModal('レイヤー動作確認',
+    '<p>いま表示している地点（' + c.lat.toFixed(4) + ', ' + c.lng.toFixed(4) + '）のタイルを1枚ずつ読み込んで確認します。' +
+    '<br><b>×</b> は、そのレイヤーがこの場所を含まないか、配信が変わった可能性を示します。</p>' +
+    rows +
+    '<p class="note" style="margin-top:12px;">※ 過去の空中写真は撮影範囲が限られます。都心部（東京駅・横浜駅など）で試すと確認しやすいです。</p>');
+
+  LAYERS.forEach(function(l){
+    var z = Math.max(l.minZ, Math.min(15, l.maxNative));
+    var t = tileXY(c.lat, c.lng, z);
+    var url = l.url.replace('{z}', z).replace('{x}', t.x).replace('{y}', t.y);
+    var cell = document.querySelector('.trow[data-t="' + l.id + '"] .st');
+    var img = new Image();
+    var done = false;
+    var finish = function(ok){
+      if(done || !cell) return;
+      done = true;
+      cell.textContent = ok ? '○' : '×';
+      cell.className = 'st ' + (ok ? 'ok' : 'ng');
+    };
+    img.onload = function(){ finish(img.naturalWidth > 0); };
+    img.onerror = function(){ finish(false); };
+    setTimeout(function(){ finish(false); }, 12000);
+    img.src = url;
+  });
+});
+
+document.getElementById('btnCredit').addEventListener('click', function(){
+  openModal('出典・利用条件',
+    '<h4>地図・空中写真</h4><ul>' +
+    '<li>標準地図／淡色地図／白地図／空中写真（最新・1936〜1990年代）／明治期の低湿地／陰影起伏図／色別標高図／傾斜量図：' +
+      '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院「地理院タイル」</a></li>' +
+    '<li>迅速測図（1880年代・関東平野）：' +
+      '<a href="https://habs.rad.naro.go.jp/" target="_blank" rel="noopener">農研機構「歴史的農業環境閲覧システム」</a></li>' +
+    '<li>OpenStreetMap：' +
+      '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">&copy; OpenStreetMap contributors</a></li>' +
+    '<li>地名・住所検索：' +
+      '<a href="https://msearch.gsi.go.jp/" target="_blank" rel="noopener">国土地理院 地名検索API</a></li>' +
+    '</ul>' +
+    '<h4>使うときの注意</h4><ul>' +
+    '<li>地理院タイルの利用は、出典の表示など<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">利用規約</a>に従ってください。</li>' +
+    '<li>各タイルは配信元のサーバーから直接読み込みます。大量アクセスは避けてください。</li>' +
+    '<li>過去の空中写真・古地図は撮影／作成範囲が限られ、位置のずれが含まれることがあります。</li>' +
+    '</ul>' +
+    '<h4>ソフトウェア</h4><ul>' +
+    '<li><a href="https://leafletjs.com/" target="_blank" rel="noopener">Leaflet 1.9.4</a>（BSD-2-Clause）</li>' +
+    '</ul>');
+});
+
+/* ============================================================
+   8. 起動
+   ============================================================ */
+
+document.getElementById('verNote').textContent = '古今マップ ' + APP_VERSION + '　左右キーで年代を移動できます。';
+
+(function boot(){
+  readHash();
+  setBase(state.base, { noZoom:true });
+  setOverlays(state.overlays);
+  if(state.compareOn){
+    state.dividerPos = Math.round(map.getSize().x / 2);
+    document.getElementById('divider').classList.add('on');
+    document.getElementById('btnCompare').classList.add('on');
+    setCompare(state.compare);
+  }
+  state.dividerPos = state.dividerPos || Math.round(map.getSize().x / 2);
+  if(window.__placeDivider) window.__placeDivider();
+  syncUI();
+  writeHash();
+})();
+</script>
+</body>
+</html>
