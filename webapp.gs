@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.11',
+  VERSION: 'v1.11.12',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -1028,6 +1028,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.12: バージョン番号のカウントアップとデプロイ確認のためのテストリリース（機能変更なし）。\\n" +' +
     '      "・v1.11.11: 保護シート判定の誤検知を修正し、除外範囲などで実際は編集可能な記録シートも正しく保存できるように変更。\\n" +' +
     '      "・v1.11.10: 新しいバージョンが公開されると、画面上部のバージョン表示が赤くなり、タップすると更新内容と再起動確認を表示する機能を追加。\\n" +' +
     '      "・v1.11.9: 地図ピンの「訪問記録を開く」ボタンを、訪問拒否の建物ではグレーアウトして遷移できないように変更。\\n" +' +
