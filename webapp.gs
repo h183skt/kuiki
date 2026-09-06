@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.13',
+  VERSION: 'v1.11.13.1',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -674,6 +674,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.btnrow{display:flex;gap:8px;}' +
     '.btnrow button{flex:1;font-size:15px;font-weight:700;padding:12px;border-radius:10px;border:0;}' +
     '#save{background:var(--accent);color:#fff;}' +
+    '.leaflet-control-layers{border-radius:10px!important;box-shadow:0 2px 10px rgba(0,0,0,.15)!important;border:1px solid var(--line)!important;font-size:13px!important;}' +
+    '.leaflet-control-layers-expanded{padding:10px 14px!important;line-height:1.7!important;max-height:75vh;overflow-y:auto;background:var(--card)!important;color:var(--text)!important;}' +
+    '.leaflet-control-layers-base label{margin:3px 0!important;cursor:pointer;display:flex;align-items:center;gap:6px;}' +
+    '.leaflet-control-layers-base input{margin:0!important;cursor:pointer;}' +
     '</style></head><body>' +
     '<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">' +
     '  <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 4px 16px rgba(0,0,0,0.08);display:flex;flex-direction:column;align-items:center;">' +
@@ -795,10 +799,27 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  mapa.href="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(r.name+" "+r.addr);mapa.target="_blank";mapa.rel="noopener";' +
     '  c.appendChild(info);c.appendChild(mapa);list.appendChild(c);});}' +
     'function initMap(){if(map)return;map=L.map("map");' +
-    ' L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);' +
+    ' const ga="<a href=\\"https://maps.gsi.go.jp/development/ichiran.html\\" target=\\"_blank\\" rel=\\"noopener\\">国土地理院</a>";' +
+    ' const oa="&copy; <a href=\\"https://www.openstreetmap.org/copyright\\" target=\\"_blank\\" rel=\\"noopener\\">OpenStreetMap</a>";' +
+    ' const baseMaps={' +
+    '  "通常 (OSM)":L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:oa}),' +
+    '  "地理院 標準":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",{maxNativeZoom:18,maxZoom:19,attribution:ga}),' +
+    '  "地理院 淡色":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png",{maxNativeZoom:18,maxZoom:19,attribution:ga}),' +
+    '  "写真 (最新)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",{maxNativeZoom:18,maxZoom:19,attribution:ga}),' +
+    '  "写真 (1987-90)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/gazo4/{z}/{x}/{y}.jpg",{minZoom:10,maxNativeZoom:17,maxZoom:19,attribution:ga}),' +
+    '  "写真 (1979-83)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/gazo2/{z}/{x}/{y}.jpg",{minZoom:10,maxNativeZoom:17,maxZoom:19,attribution:ga}),' +
+    '  "写真 (1974-78)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/gazo1/{z}/{x}/{y}.jpg",{minZoom:10,maxNativeZoom:17,maxZoom:19,attribution:ga}),' +
+    '  "写真 (1961-69)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/ort_old10/{z}/{x}/{y}.png",{minZoom:10,maxNativeZoom:17,maxZoom:19,attribution:ga}),' +
+    '  "写真 (1945-50 米軍)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/ort_USA10/{z}/{x}/{y}.png",{minZoom:10,maxNativeZoom:17,maxZoom:19,attribution:ga}),' +
+    '  "写真 (1936頃 陸軍)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/ort_riku10/{z}/{x}/{y}.png",{minZoom:11,maxNativeZoom:17,maxZoom:19,attribution:ga})' +
+    ' };' +
+    ' let curBase=(savedView&&savedView.b&&baseMaps[savedView.b])?savedView.b:"通常 (OSM)";' +
+    ' baseMaps[curBase].addTo(map);' +
+    ' L.control.layers(baseMaps,null,{position:"topright"}).addTo(map);' +
+    ' map.on("baselayerchange",e=>{curBase=e.name;if(!savedView)savedView={};savedView.b=curBase;saveState();});' +
     ' layer=L.layerGroup().addTo(map);' +
     ' if(savedView&&savedView.c){map.setView(savedView.c,savedView.z);}else{map.setView([35.62,139.57],14);}' +
-    ' map.on("moveend",()=>{savedView={c:[map.getCenter().lat,map.getCenter().lng],z:map.getZoom()};saveState();});}' +
+    ' map.on("moveend",()=>{if(!savedView)savedView={};savedView.c=[map.getCenter().lat,map.getCenter().lng];savedView.z=map.getZoom();savedView.b=curBase;saveState();});}' +
     'function renderMap(hits){if(!map)return;layer.clearLayers();const pts=[];' +
     ' const groups={};' +
     ' hits.forEach(r=>{if(r.lat===null||r.lng===null)return;const key=r.lat+","+r.lng;if(!groups[key])groups[key]=[];groups[key].push(r);});' +
