@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.14.006',
+  VERSION: 'v1.11.14.007',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -714,6 +714,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.adj-btn-sm{height:32px;padding:0 2px;font-size:11px;font-weight:700;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;-webkit-user-select:none;user-select:none;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.06);}' +
     '.adj-btn-sm:active{background:var(--line);transform:scale(0.96);}' +
     '.corner-pin{width:24px;height:24px;background:var(--accent);border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:move;touch-action:none;}' +
+    '.leaflet-control-layers-toggle{position:relative;display:flex!important;align-items:center;justify-content:center;}' +
+    '.ctrl-btn-badge{position:absolute;bottom:1px;right:1px;font-size:9px;font-weight:800;line-height:1.1;padding:1px 3px;border-radius:3px;background:var(--accent);color:#fff;pointer-events:none;box-shadow:0 1px 2px rgba(0,0,0,0.3);}' +
+    '.leaflet-control-base-map .ctrl-btn-badge{background:#1e8e3e;}' +
     '</style></head><body>' +
     '<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">' +
     '  <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 4px 16px rgba(0,0,0,0.08);display:flex;flex-direction:column;align-items:center;">' +
@@ -738,8 +741,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  <div id="overlayBar" style="display:none;">' +
     '    <div class="obar-row">' +
     '      <span>透過率:</span>' +
-    '      <input id="overlayOpacity" type="range" min="0" max="100" value="65">' +
-    '      <span id="opacityTxt">65%</span>' +
+    '      <input id="overlayOpacity" type="range" min="0" max="100" value="50">' +
+    '      <span id="opacityTxt">50%</span>' +
     '      <button id="btnAdjustMode">位置調整 ⚙</button>' +
     '    </div>' +
     '  </div>' +
@@ -749,8 +752,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '    <select id="adjTarget" style="flex:1;min-width:105px;font-size:13px;font-weight:700;padding:4px 6px;height:34px;border:1.5px solid var(--accent);border-radius:8px;background:var(--card);"></select>' +
     '    <div style="display:flex;align-items:center;gap:4px;background:var(--bg);padding:2px 6px;border-radius:8px;border:1px solid var(--line);height:34px;">' +
     '      <span style="font-size:11px;font-weight:700;color:var(--sub);white-space:nowrap;">透過</span>' +
-    '      <input id="modalOverlayOpacity" type="range" min="0" max="100" value="65" style="width:55px;height:18px;accent-color:var(--accent);cursor:pointer;">' +
-    '      <span id="modalOpacityTxt" style="font-size:11px;font-weight:700;min-width:28px;text-align:right;">65%</span>' +
+    '      <input id="modalOverlayOpacity" type="range" min="0" max="100" value="50" style="width:55px;height:18px;accent-color:var(--accent);cursor:pointer;">' +
+    '      <span id="modalOpacityTxt" style="font-size:11px;font-weight:700;min-width:28px;text-align:right;">50%</span>' +
     '    </div>' +
     '    <button id="btnAdjClose" class="adj-large-btn" style="background:var(--sub);color:#fff;padding:0 10px;height:34px;font-size:13px;white-space:nowrap;">完了</button>' +
     '  </div>' +
@@ -920,7 +923,12 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  {id:"176-205",label:"登戸 176-205 (台和・宿河原)",file:"登戸区域_176-205",defBounds:[[35.617465,139.547739],[35.628698,139.567223]]}' +
     ' ];' +
     ' let customBounds={};try{const bs=localStorage.getItem("kuiki_overlay_bounds");if(bs)customBounds=JSON.parse(bs);}catch(e){}' +
-    ' let curOpacity=(savedView&&savedView.overlayOpacity!==undefined)?savedView.overlayOpacity:0.65;' +
+    ' let curOpacity=0.50;' +
+    ' try{' +
+    '  const opStr=localStorage.getItem("kuiki_overlay_opacity");' +
+    '  if(opStr!==null&&opStr!=="")curOpacity=parseFloat(opStr);' +
+    '  else if(savedView&&savedView.overlayOpacity!==undefined)curOpacity=savedView.overlayOpacity;' +
+    ' }catch(e){}' +
     ' const overlayLayers={};const overlayMapLayers={};const activeOverlays=new Set((savedView&&savedView.overlays)?savedView.overlays:[]);' +
     ' OVERLAY_DEFS.forEach(d=>{' +
     '  const b=customBounds[d.id]||d.defBounds;' +
@@ -931,7 +939,34 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' });' +
     ' let curBase=(savedView&&savedView.b&&baseMaps[savedView.b])?savedView.b:"通常 (OSM)";' +
     ' baseMaps[curBase].addTo(map);' +
-    ' L.control.layers(baseMaps,overlayMapLayers,{position:"topright"}).addTo(map);' +
+    ' const overlayControl=L.control.layers(null,overlayMapLayers,{position:"topright",collapsed:true}).addTo(map);' +
+    ' const baseControl=L.control.layers(baseMaps,null,{position:"topright",collapsed:true}).addTo(map);' +
+    ' const overlayCtrlEl=overlayControl.getContainer();' +
+    ' if(overlayCtrlEl){' +
+    '  overlayCtrlEl.classList.add("leaflet-control-overlay-map");' +
+    '  const tBtn=overlayCtrlEl.querySelector(".leaflet-control-layers-toggle");' +
+    '  if(tBtn){tBtn.title="登戸区域地図レイヤー";tBtn.innerHTML=\'<span class="ctrl-btn-badge">区域</span>\';}' +
+    '  const form=overlayCtrlEl.querySelector("form");' +
+    '  if(form){' +
+    '   const title=document.createElement("div");' +
+    '   title.style.cssText="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px;";' +
+    '   title.textContent="🗺️ 登戸区域地図";' +
+    '   form.insertBefore(title,form.firstChild);' +
+    '  }' +
+    ' }' +
+    ' const baseCtrlEl=baseControl.getContainer();' +
+    ' if(baseCtrlEl){' +
+    '  baseCtrlEl.classList.add("leaflet-control-base-map");' +
+    '  const tBtn=baseCtrlEl.querySelector(".leaflet-control-layers-toggle");' +
+    '  if(tBtn){tBtn.title="衛星写真・背景地図レイヤー";tBtn.innerHTML=\'<span class="ctrl-btn-badge">写真</span>\';}' +
+    '  const form=baseCtrlEl.querySelector("form");' +
+    '  if(form){' +
+    '   const title=document.createElement("div");' +
+    '   title.style.cssText="font-size:12px;font-weight:800;color:#1e8e3e;margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px;";' +
+    '   title.textContent="🛰️ 背景地図・衛星写真";' +
+    '   form.insertBefore(title,form.firstChild);' +
+    '  }' +
+    ' }' +
     ' OVERLAY_DEFS.forEach(d=>{if(activeOverlays.has(d.id))overlayLayers[d.id].layer.addTo(map);});' +
     ' const obar=document.getElementById("overlayBar");' +
     ' const opSlider=document.getElementById("overlayOpacity");' +
@@ -972,6 +1007,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  if(mOpTxt)mOpTxt.textContent=str;' +
     '  Object.keys(overlayLayers).forEach(k=>overlayLayers[k].layer.setOpacity(curOpacity));' +
     '  if(!savedView)savedView={};savedView.overlayOpacity=curOpacity;saveState();' +
+    '  try{localStorage.setItem("kuiki_overlay_opacity",String(curOpacity));}catch(e){}' +
     ' }' +
     ' syncOpacity(Math.round(curOpacity*100));' +
     ' if(opSlider)opSlider.oninput=()=>syncOpacity(parseInt(opSlider.value,10));' +
@@ -1350,6 +1386,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.14.007: 区域地図と衛星写真のレイヤーボタンを上下に分離配置。透過率の初期値を50%とし端末記憶に対応。\\n" +' +
     '      "・v1.11.14.006: 登戸区域地図8画像の初期座標（初期位置・拡大縮小幅・縦横比）を微調整済みの確定値に更新。\\n" +' +
     '      "・v1.11.14.005: 矢印キー移動量を半減（約5m微調整化）、拡大縮小も1%刻み化。座標コピーに拡大縮小幅・中心・移動量等の全数値を含めるよう拡張。\\n" +' +
     '      "・v1.11.14.004: 位置微調整モーダルをコンパクト化（サイズ・比率調整を折りたたみ化し、位置移動と横並びレイアウトに変更して地図視認性を向上）。\\n" +' +
