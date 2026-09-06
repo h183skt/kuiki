@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.14.004',
+  VERSION: 'v1.11.14.005',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -769,6 +769,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '    </div>' +
     '  </div>' +
     '  <div id="adjSizePanel" class="adj-size-panel">' +
+    '    <div style="grid-column:1/-1;font-size:11px;color:var(--sub);display:flex;justify-content:space-between;align-items:center;background:var(--bg);padding:3px 6px;border-radius:4px;border:1px solid var(--line);">' +
+    '      <span id="adjStatusShift">移動: 北 0.0m / 東 0.0m</span>' +
+    '      <span id="adjStatusScale">拡大: 100.0% (幅100% 高100%)</span>' +
+    '    </div>' +
     '    <button class="adj-btn-sm" id="adjZoomIn" title="全体拡大">全体 ＋</button>' +
     '    <button class="adj-btn-sm" id="adjZoomOut" title="全体縮小">全体 −</button>' +
     '    <button class="adj-btn-sm" id="adjWiden" title="横幅拡大">幅 ＋</button>' +
@@ -1008,11 +1012,38 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  adjustMode=(flag!==undefined)?flag:!adjustMode;' +
     '  if(btnAdj)btnAdj.classList.toggle("on",adjustMode);' +
     '  if(adjModal)adjModal.style.display=adjustMode?"flex":"none";' +
-    '  if(adjustMode)refreshAdjustMarkers();else clearAdjustMarkers();' +
+    '  if(adjustMode){refreshAdjustMarkers();updateAdjStatus();}else clearAdjustMarkers();' +
     ' }' +
     ' if(btnAdj)btnAdj.onclick=()=>toggleAdjustMode();' +
     ' if(btnAdjClose)btnAdjClose.onclick=()=>toggleAdjustMode(false);' +
-    ' if(selTarget)selTarget.onchange=()=>refreshAdjustMarkers();' +
+    ' if(selTarget)selTarget.onchange=()=>{refreshAdjustMarkers();updateAdjStatus();};' +
+    ' function getOverlayMetrics(id){' +
+    '  const item=overlayLayers[id];if(!item)return null;' +
+    '  const b=item.bounds;const d=item.def.defBounds;' +
+    '  const curW=b[1][1]-b[0][1];const curH=b[1][0]-b[0][0];' +
+    '  const defW=d[1][1]-d[0][1];const defH=d[1][0]-d[0][0];' +
+    '  const curCLat=(b[0][0]+b[1][0])/2;const curCLng=(b[0][1]+b[1][1])/2;' +
+    '  const defCLat=(d[0][0]+d[1][0])/2;const defCLng=(d[0][1]+d[1][1])/2;' +
+    '  const dLatM=(curCLat-defCLat)*111000;' +
+    '  const dLngM=(curCLng-defCLng)*(111000*Math.cos(curCLat*Math.PI/180));' +
+    '  const scaleW=curW/defW;const scaleH=curH/defH;' +
+    '  const scaleTotal=Math.sqrt(scaleW*scaleH);' +
+    '  return {' +
+    '   bounds:[[Number(b[0][0].toFixed(6)),Number(b[0][1].toFixed(6))],[Number(b[1][0].toFixed(6)),Number(b[1][1].toFixed(6))]],' +
+    '   center:[Number(curCLat.toFixed(6)),Number(curCLng.toFixed(6))],' +
+    '   size:{widthDeg:Number(curW.toFixed(6)),heightDeg:Number(curH.toFixed(6)),widthMeters:Math.round(curW*(111000*Math.cos(curCLat*Math.PI/180))),heightMeters:Math.round(curH*111000)},' +
+    '   scaleFromDefault:{totalPercent:(scaleTotal*100).toFixed(1)+"%",widthPercent:(scaleW*100).toFixed(1)+"%",heightPercent:(scaleH*100).toFixed(1)+"%",scaleWidth:Number(scaleW.toFixed(4)),scaleHeight:Number(scaleH.toFixed(4))},' +
+    '   offsetFromDefaultMeters:{dNorthM:Number(dLatM.toFixed(1)),dEastM:Number(dLngM.toFixed(1))}' +
+    '  };' +
+    ' }' +
+    ' function updateAdjStatus(){' +
+    '  if(!selTarget||!selTarget.value)return;' +
+    '  const m=getOverlayMetrics(selTarget.value);if(!m)return;' +
+    '  const elShift=document.getElementById("adjStatusShift");' +
+    '  const elScale=document.getElementById("adjStatusScale");' +
+    '  if(elShift)elShift.textContent="移動: " + (m.offsetFromDefaultMeters.dNorthM>=0?"北+":"南")+Math.abs(m.offsetFromDefaultMeters.dNorthM)+"m / " + (m.offsetFromDefaultMeters.dEastM>=0?"東+":"西")+Math.abs(m.offsetFromDefaultMeters.dEastM)+"m";' +
+    '  if(elScale)elScale.textContent="拡大: " + m.scaleFromDefault.totalPercent + " (幅" + m.scaleFromDefault.widthPercent + " 高" + m.scaleFromDefault.heightPercent + ")";' +
+    ' }' +
     ' function nudge(dLat,dLng,scaleLat,scaleLng){' +
     '  if(!selTarget||!selTarget.value)return;' +
     '  const id=selTarget.value;const item=overlayLayers[id];if(!item)return;' +
@@ -1021,20 +1052,20 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  let h=(b[1][0]-b[0][0])*scaleLat;let w=(b[1][1]-b[0][1])*scaleLng;' +
     '  const nLat=cLat+dLat;const nLng=cLng+dLng;' +
     '  b[0][0]=nLat-h/2;b[1][0]=nLat+h/2;b[0][1]=nLng-w/2;b[1][1]=nLng+w/2;' +
-    '  item.layer.setBounds(b);refreshAdjustMarkers();' +
+    '  item.layer.setBounds(b);refreshAdjustMarkers();updateAdjStatus();' +
     ' }' +
-    ' const step=0.00010;' +
+    ' const step=0.00005;' +
     ' const bindAdj=(id,fn)=>{const el=document.getElementById(id);if(el)el.onclick=fn;};' +
     ' bindAdj("adjUp",()=>nudge(step,0,1,1));' +
     ' bindAdj("adjDown",()=>nudge(-step,0,1,1));' +
     ' bindAdj("adjLeft",()=>nudge(0,-step,1,1));' +
     ' bindAdj("adjRight",()=>nudge(0,step,1,1));' +
-    ' bindAdj("adjZoomIn",()=>nudge(0,0,1.02,1.02));' +
-    ' bindAdj("adjZoomOut",()=>nudge(0,0,0.98,0.98));' +
-    ' bindAdj("adjWiden",()=>nudge(0,0,1,1.02));' +
-    ' bindAdj("adjNarrow",()=>nudge(0,0,1,0.98));' +
-    ' bindAdj("adjTaller",()=>nudge(0,0,1.02,1));' +
-    ' bindAdj("adjShorter",()=>nudge(0,0,0.98,1));' +
+    ' bindAdj("adjZoomIn",()=>nudge(0,0,1.01,1.01));' +
+    ' bindAdj("adjZoomOut",()=>nudge(0,0,0.99,0.99));' +
+    ' bindAdj("adjWiden",()=>nudge(0,0,1,1.01));' +
+    ' bindAdj("adjNarrow",()=>nudge(0,0,1,0.99));' +
+    ' bindAdj("adjTaller",()=>nudge(0,0,1.01,1));' +
+    ' bindAdj("adjShorter",()=>nudge(0,0,0.99,1));' +
     ' bindAdj("adjSave",()=>{' +
     '  if(!selTarget||!selTarget.value)return;' +
     '  const id=selTarget.value;const item=overlayLayers[id];if(!item)return;' +
@@ -1047,17 +1078,17 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  item.bounds=JSON.parse(JSON.stringify(item.def.defBounds));' +
     '  delete customBounds[id];' +
     '  try{localStorage.setItem("kuiki_overlay_bounds",JSON.stringify(customBounds));}catch(e){}' +
-    '  item.layer.setBounds(item.bounds);refreshAdjustMarkers();alert("初期位置に戻しました。");' +
+    '  item.layer.setBounds(item.bounds);refreshAdjustMarkers();updateAdjStatus();alert("初期位置に戻しました。");' +
     ' });' +
     ' bindAdj("adjCopy",()=>{' +
     '  const exportData={};' +
-    '  OVERLAY_DEFS.forEach(d=>{exportData[d.id]=overlayLayers[d.id].bounds;});' +
+    '  OVERLAY_DEFS.forEach(d=>{exportData[d.id]=getOverlayMetrics(d.id);});' +
     '  const jsonStr=JSON.stringify(exportData,null,2);' +
     '  if(navigator.clipboard&&navigator.clipboard.writeText){' +
     '   navigator.clipboard.writeText(jsonStr).then(()=>{' +
-    '    alert("調整した座標データをクリップボードにコピーしました！\\nチャットに貼り付けてお知らせください。");' +
-    '   }).catch(()=>{prompt("以下の座標データをコピーしてください:",jsonStr);});' +
-    '  }else{prompt("以下の座標データをコピーしてください:",jsonStr);}' +
+    '    alert("確定座標・中心・拡大縮小率・移動量の全数値をコピーしました！\\nチャットに貼り付けてお知らせください。");' +
+    '   }).catch(()=>{prompt("以下の設定データをコピーしてください:",jsonStr);});' +
+    '  }else{prompt("以下の設定データをコピーしてください:",jsonStr);}' +
     ' });' +
     ' const btnToggleSize=document.getElementById("btnToggleSize");' +
     ' const adjSizePanel=document.getElementById("adjSizePanel");' +
@@ -1319,6 +1350,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.14.005: 矢印キー移動量を半減（約5m微調整化）、拡大縮小も1%刻み化。座標コピーに拡大縮小幅・中心・移動量等の全数値を含めるよう拡張。\\n" +' +
     '      "・v1.11.14.004: 位置微調整モーダルをコンパクト化（サイズ・比率調整を折りたたみ化し、位置移動と横並びレイアウトに変更して地図視認性を向上）。\\n" +' +
     '      "・v1.11.14.003: 調整モーダル内に透過率スライダーと「調整した座標をコピー」ボタンを追加、矢印ボタン等のテキスト選択を防止。\\n" +' +
     '      "・v1.11.14.002: 位置微調整モーダルを画面最上部へ移動し、誤タッチ防止のため全操作ボタンを大型化。\\n" +' +
