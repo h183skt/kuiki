@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.14.014',
+  VERSION: 'v1.11.15',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -1478,6 +1478,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.15: 登戸区域地図オーバーレイ（微調整機能・透過率記憶）、背景写真/地図の独立切替、ピン表示複数選択、検索窓と区域サイト配置を最適化。\\n" +' +
     '      "・v1.11.14.014: 「区域」「写真」レイヤー選択パネルに「完了」ボタンを追加（ピン表示と同じ操作で閉じられます）。\\n" +' +
     '      "・v1.11.14.013: 「写真」「区域」レイヤーのパネルが「現在地」ボタンの下に隠れる問題を修正（最前面に表示）。\\n" +' +
     '      "・v1.11.14.012: 区域サイトを同じタブで開くよう変更（ブラウザの戻るボタンで元の画面・検索条件・地図位置のまま復帰）。\\n" +' +
