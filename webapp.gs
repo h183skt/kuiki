@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.13.1',
+  VERSION: 'v1.11.13.2',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -806,7 +806,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  "地理院 標準":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",{maxNativeZoom:18,maxZoom:19,attribution:ga}),' +
     '  "地理院 淡色":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png",{maxNativeZoom:18,maxZoom:19,attribution:ga}),' +
     '  "写真 (最新)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",{maxNativeZoom:18,maxZoom:19,attribution:ga}),' +
+    '  "写真 (2007年〜)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/ort/{z}/{x}/{y}.jpg",{minZoom:14,maxNativeZoom:18,maxZoom:19,attribution:ga}),' +
+    '  "写真 (2004年〜)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/airphoto/{z}/{x}/{y}.png",{minZoom:9,maxNativeZoom:18,maxZoom:19,attribution:ga}),' +
     '  "写真 (1987-90)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/gazo4/{z}/{x}/{y}.jpg",{minZoom:10,maxNativeZoom:17,maxZoom:19,attribution:ga}),' +
+    '  "写真 (1984-86)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/gazo3/{z}/{x}/{y}.jpg",{minZoom:10,maxNativeZoom:17,maxZoom:19,attribution:ga}),' +
     '  "写真 (1979-83)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/gazo2/{z}/{x}/{y}.jpg",{minZoom:10,maxNativeZoom:17,maxZoom:19,attribution:ga}),' +
     '  "写真 (1974-78)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/gazo1/{z}/{x}/{y}.jpg",{minZoom:10,maxNativeZoom:17,maxZoom:19,attribution:ga}),' +
     '  "写真 (1961-69)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/ort_old10/{z}/{x}/{y}.png",{minZoom:10,maxNativeZoom:17,maxZoom:19,attribution:ga}),' +
