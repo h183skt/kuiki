@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.14.002',
+  VERSION: 'v1.11.14.003',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -709,9 +709,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.adj-lbl{font-size:12px;font-weight:700;color:var(--sub);}' +
     '.adj-dpad{display:grid;grid-template-columns:repeat(3, 50px);grid-template-rows:repeat(2, 46px);gap:5px;}' +
     '.adj-size-grid{display:grid;grid-template-columns:repeat(2, 1fr);gap:6px;min-width:160px;}' +
-    '.adj-large-btn{height:46px;min-width:48px;padding:8px 12px;font-size:15px;font-weight:700;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;box-shadow:0 2px 5px rgba(0,0,0,.08);}' +
+    '.adj-large-btn{height:46px;min-width:48px;padding:8px 12px;font-size:15px;font-weight:700;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;-webkit-touch-callout:none;box-shadow:0 2px 5px rgba(0,0,0,.08);}' +
     '.adj-large-btn:active{background:var(--line);transform:scale(0.96);}' +
-    '.adj-arrow{font-size:22px;font-weight:900;background:#f0f4f9;border-color:#d2e3fc;color:var(--accent);}' +
+    '.adj-arrow{font-size:22px;font-weight:900;background:#f0f4f9;border-color:#d2e3fc;color:var(--accent);-webkit-user-select:none;user-select:none;}' +
     '.corner-pin{width:24px;height:24px;background:var(--accent);border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:move;touch-action:none;}' +
     '</style></head><body>' +
     '<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">' +
@@ -751,6 +751,11 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '      <button id="btnAdjClose" class="adj-large-btn" style="background:var(--sub);color:#fff;min-width:60px;height:42px;">完了</button>' +
     '    </div>' +
     '  </div>' +
+    '  <div style="display:flex;align-items:center;gap:8px;background:var(--bg);padding:6px 10px;border-radius:8px;border:1px solid var(--line);">' +
+    '    <span style="font-size:13px;font-weight:700;white-space:nowrap;">透過率:</span>' +
+    '    <input id="modalOverlayOpacity" type="range" min="0" max="100" value="65" style="flex:1;height:24px;accent-color:var(--accent);cursor:pointer;">' +
+    '    <span id="modalOpacityTxt" style="min-width:38px;font-size:13px;font-weight:700;text-align:right;">65%</span>' +
+    '  </div>' +
     '  <div class="adj-body">' +
     '    <div class="adj-group">' +
     '      <span class="adj-lbl">位置移動</span>' +
@@ -776,6 +781,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  <div style="display:flex;gap:8px;margin-top:2px;">' +
     '    <button class="adj-large-btn" id="adjSave" style="flex:2;background:var(--accent);color:#fff;font-size:15px;height:46px;">💾 この位置を保存</button>' +
     '    <button class="adj-large-btn" id="adjReset" style="flex:1;background:var(--card);color:#d93025;border-color:#d93025;font-size:13.5px;height:46px;">初期位置</button>' +
+    '  </div>' +
+    '  <div style="margin-top:2px;">' +
+    '    <button class="adj-large-btn" id="adjCopy" style="width:100%;background:var(--card);color:var(--accent);border-color:var(--accent);font-size:14px;height:44px;">📋 調整した座標をコピー</button>' +
     '  </div>' +
     '</div>' +
     '<div id="rec"><div id="recinner"><div id="rechead"><div style="flex:1;min-width:0;"><h2 id="rectitle" style="font-size:18px;font-weight:800;color:var(--text);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">訪問記録</h2><div id="rec-datetime" style="font-size:18px;color:var(--accent);margin-top:4px;font-weight:800;letter-spacing:-0.5px;"></div></div><button id="recclose">閉じる</button></div><div id="recbody"></div><div id="rec-dir" style="padding:10px 12px;display:none;background:var(--card);border-top:1px solid var(--line);"></div></div></div>' +
@@ -958,14 +966,21 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '   if(adjustMode)toggleAdjustMode(false);' +
     '  }' +
     ' }' +
-    ' if(opSlider&&opTxt){' +
-    '  opSlider.value=Math.round(curOpacity*100);opTxt.textContent=Math.round(curOpacity*100)+"%";' +
-    '  opSlider.oninput=()=>{' +
-    '   const v=parseInt(opSlider.value,10);curOpacity=v/100;opTxt.textContent=v+"%";' +
-    '   Object.keys(overlayLayers).forEach(k=>overlayLayers[k].layer.setOpacity(curOpacity));' +
-    '   if(!savedView)savedView={};savedView.overlayOpacity=curOpacity;saveState();' +
-    '  };' +
+    ' const mOpSlider=document.getElementById("modalOverlayOpacity");' +
+    ' const mOpTxt=document.getElementById("modalOpacityTxt");' +
+    ' function syncOpacity(val){' +
+    '  curOpacity=val/100;' +
+    '  const str=val+"%";' +
+    '  if(opSlider)opSlider.value=val;' +
+    '  if(opTxt)opTxt.textContent=str;' +
+    '  if(mOpSlider)mOpSlider.value=val;' +
+    '  if(mOpTxt)mOpTxt.textContent=str;' +
+    '  Object.keys(overlayLayers).forEach(k=>overlayLayers[k].layer.setOpacity(curOpacity));' +
+    '  if(!savedView)savedView={};savedView.overlayOpacity=curOpacity;saveState();' +
     ' }' +
+    ' syncOpacity(Math.round(curOpacity*100));' +
+    ' if(opSlider)opSlider.oninput=()=>syncOpacity(parseInt(opSlider.value,10));' +
+    ' if(mOpSlider)mOpSlider.oninput=()=>syncOpacity(parseInt(mOpSlider.value,10));' +
     ' function clearAdjustMarkers(){adjustMarkers.forEach(m=>map.removeLayer(m));adjustMarkers=[];}' +
     ' function refreshAdjustMarkers(){' +
     '  clearAdjustMarkers();' +
@@ -1042,6 +1057,20 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  delete customBounds[id];' +
     '  try{localStorage.setItem("kuiki_overlay_bounds",JSON.stringify(customBounds));}catch(e){}' +
     '  item.layer.setBounds(item.bounds);refreshAdjustMarkers();alert("初期位置に戻しました。");' +
+    ' });' +
+    ' bindAdj("adjCopy",()=>{' +
+    '  const exportData={};' +
+    '  OVERLAY_DEFS.forEach(d=>{exportData[d.id]=overlayLayers[d.id].bounds;});' +
+    '  const jsonStr=JSON.stringify(exportData,null,2);' +
+    '  if(navigator.clipboard&&navigator.clipboard.writeText){' +
+    '   navigator.clipboard.writeText(jsonStr).then(()=>{' +
+    '    alert("調整した座標データをクリップボードにコピーしました！\\nチャットに貼り付けてお知らせください。");' +
+    '   }).catch(()=>{prompt("以下の座標データをコピーしてください:",jsonStr);});' +
+    '  }else{prompt("以下の座標データをコピーしてください:",jsonStr);}' +
+    ' });' +
+    ' document.querySelectorAll(".adj-large-btn").forEach(btn=>{' +
+    '  btn.onselectstart=e=>e.preventDefault();' +
+    '  btn.onmousedown=e=>e.preventDefault();' +
     ' });' +
     ' map.on("overlayadd",e=>{' +
     '  const d=OVERLAY_DEFS.find(x=>x.label===e.name);' +
@@ -1291,6 +1320,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.14.003: 調整モーダル内に透過率スライダーと「調整した座標をコピー」ボタンを追加、矢印ボタン等のテキスト選択を防止。\\n" +' +
     '      "・v1.11.14.002: 位置微調整モーダルを画面最上部へ移動し、誤タッチ防止のため全操作ボタンを大型化。\\n" +' +
     '      "・v1.11.14.001: 登戸区域地図（8画像）のオーバーレイ重ね合わせ表示、透過率スライダー、位置微調整機能を追加。\\n" +' +
     '      "・v1.11.14: 背景地図切替（国土地理院の最新・年代別空中写真など13種）とピン非表示ボタン、区域サイトリンクを追加。\\n" +' +
