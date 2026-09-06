@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.16',
+  VERSION: 'v1.11.17',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -604,9 +604,13 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 12px;position:relative;z-index:1100;}' +
     '.topbar{display:flex;align-items:center;gap:8px;margin-bottom:8px;}' +
     'h1{font-size:16px;margin:0;flex:1;}' +
-    '.ver{font-size:11px;color:var(--sub);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-right:4px;white-space:nowrap;cursor:pointer;user-select:none;}' +
-    '.ver.update-available{color:#fff;background:#d93025;border-color:#d93025;font-weight:700;}' +
+    '.ver{font-size:11px;color:var(--sub);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-right:2px;white-space:nowrap;cursor:pointer;user-select:none;}' +
+    '.ver.update-available{color:#fff!important;background:#d93025!important;border-color:#d93025!important;font-weight:700;animation:pulse-red 2s infinite;}' +
     '.ver:active{opacity:0.6;}' +
+    '.btn-refresh{font-size:11px;font-weight:700;color:var(--accent);background:var(--card);border:1px solid var(--accent);border-radius:8px;padding:3px 8px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;box-shadow:0 1px 3px rgba(0,0,0,.06);}' +
+    '.btn-refresh:active{opacity:0.7;transform:scale(0.96);}' +
+    '.btn-refresh.has-update{background:#d93025!important;color:#fff!important;border-color:#d93025!important;animation:pulse-red 2s infinite;}' +
+    '@keyframes pulse-red{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}}' +
     '.toggle{display:flex;border:1px solid var(--accent);border-radius:8px;overflow:hidden;}' +
     '.toggle button{font-size:13px;padding:6px 14px;border:0;background:var(--card);color:var(--accent);}' +
     '.toggle button.on{background:var(--accent);color:#fff;}' +
@@ -742,8 +746,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '    <div id="login-error-msg" style="color:#d93025;font-size:13px;margin-top:12px;text-align:center;min-height:18px;font-weight:600;width:100%;"></div>' +
     '  </div>' +
     '</div>' +
-    '<header><div class="topbar"><h1>' + WEBAPP.TITLE + '</h1>' +
-    '<span class="ver" id="btnVersion">' + WEBAPP.VERSION + '</span>' +
+    '<header><div class="topbar"><h1 style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + WEBAPP.TITLE + '</h1>' +
+    '<span class="ver" id="btnVersion" title="バージョン情報・更新履歴">' + WEBAPP.VERSION + '</span>' +
+    '<button id="btnAppRefresh" type="button" class="btn-refresh" title="アプリを最新状態に更新">🔄 更新</button>' +
     '<button id="btnUpdate" style="display:none;font-size:11px;color:var(--accent);background:var(--card);border:1px solid var(--accent);border-radius:999px;padding:2px 8px;margin-right:4px;white-space:nowrap;cursor:pointer;">マスター更新</button>' +
     '<div class="toggle"><button id="bList">一覧</button><button id="bMap" class="on">地図</button></div></div>' +
     '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">' +
@@ -1434,16 +1439,36 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  }' +
     '}' +
     'function checkForUpdate_(){' +
-    '  const btn=document.getElementById("btnVersion");' +
+    '  const btnVer=document.getElementById("btnVersion");' +
+    '  const btnRef=document.getElementById("btnAppRefresh");' +
     '  google.script.run.withSuccessHandler(latest=>{' +
-    '    if(btn)btn.classList.toggle("update-available", !!latest && latest!==CURRENT_VERSION);' +
-    '  }).withFailureHandler(()=>{}).getServerVersion();' +
+    '    const hasUpdate=!!latest && latest!==CURRENT_VERSION;' +
+    '    if(btnVer){' +
+    '      btnVer.classList.toggle("update-available", hasUpdate);' +
+    '      if(hasUpdate)btnVer.title="最新版("+latest+")があります。タップして更新内容を確認";' +
+    '    }' +
+    '    if(btnRef){' +
+    '      btnRef.classList.toggle("has-update", hasUpdate);' +
+    '      btnRef.innerHTML=hasUpdate?"🆕 更新あり":"🔄 更新";' +
+    '    }' +
+    '  }).withFailureHandler(()=>{' +
+    '  }).getServerVersion();' +
     '}' +
-
-    // アプリ起動時の自動ログイン
     'window.onload = () => {' +
     '  attemptLogin();' +
+    '  checkForUpdate_();' +
+    '  setInterval(checkForUpdate_,120000);' +
+    '  document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkForUpdate_();});' +
+    '  window.addEventListener("focus",checkForUpdate_);' +
     '};' +
+    'const btnAppRefresh=document.getElementById("btnAppRefresh");' +
+    'if(btnAppRefresh){' +
+    '  btnAppRefresh.onclick=()=>{' +
+    '    btnAppRefresh.disabled=true;' +
+    '    btnAppRefresh.textContent="更新中…";' +
+    '    safeReload();' +
+    '  };' +
+    '}' +
     
     'const btnUpdate=document.getElementById("btnUpdate");' +
     'if(btnUpdate){' +
@@ -1480,6 +1505,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.17: ヘッダー上部に「更新」ボタンを常設し、最新版がある場合はバージョン表示および更新ボタンを赤く目立たせる機能を追加。\\n" +' +
     '      "・v1.11.16: ピン表示メニューを開いた際に地図の拡大縮小（＋ー）ボタンが手前に被る問題を修正（背面に配置）。\\n" +' +
     '      "・v1.11.15: 登戸区域地図オーバーレイ（微調整機能・透過率記憶）、背景写真/地図の独立切替、ピン表示複数選択、検索窓と区域サイト配置を最適化。\\n" +' +
     '      "・v1.11.14.014: 「区域」「写真」レイヤー選択パネルに「完了」ボタンを追加（ピン表示と同じ操作で閉じられます）。\\n" +' +
