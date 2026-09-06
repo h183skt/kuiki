@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.13.2',
+  VERSION: 'v1.11.13.3',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -678,6 +678,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.leaflet-control-layers-expanded{padding:10px 14px!important;line-height:1.7!important;max-height:75vh;overflow-y:auto;background:var(--card)!important;color:var(--text)!important;}' +
     '.leaflet-control-layers-base label{margin:3px 0!important;cursor:pointer;display:flex;align-items:center;gap:6px;}' +
     '.leaflet-control-layers-base input{margin:0!important;cursor:pointer;}' +
+    '#bTogglePins{font-weight:600;display:inline-flex;align-items:center;gap:4px;}' +
+    '#bTogglePins.pins-hidden{background:#fce8e6!important;border-color:#d93025!important;color:#d93025!important;font-weight:700!important;}' +
     '</style></head><body>' +
     '<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">' +
     '  <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 4px 16px rgba(0,0,0,0.08);display:flex;flex-direction:column;align-items:center;">' +
@@ -718,7 +720,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'const DEFC="' + WEBAPP.DEFAULT_COLOR + '";' +
     'let USER_EMAIL="";' +
     'const STANDALONE=(navigator.standalone===true)||window.matchMedia("(display-mode: standalone)").matches;' +
-    'let curArea="";let curQ="";let mode="map";let map=null;let layer=null;' +
+    'let curArea="";let curQ="";let mode="map";let map=null;let layer=null;let hidePins=false;' +
     'let watchId=null;let meMarker=null;let meCircle=null;let lastPos=null;let firstFix=true;' +
     'let savedView=null;' +
     'let curRec=null;' +
@@ -731,15 +733,20 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'function isoFromDisplayDate(s){const t=String(s||"").trim();if(!t)return "";if(/^\\d{4}-\\d{2}-\\d{2}$/.test(t))return t;const m=t.match(/^(\\d{1,2})\\/(\\d{1,2})/);if(!m)return "";const y=(new Date()).getFullYear(),mo=Number(m[1]),da=Number(m[2]),dt=new Date(y,mo-1,da);if(dt.getFullYear()!==y||dt.getMonth()+1!==mo||dt.getDate()!==da)return "";return y+"-"+pad2(mo)+"-"+pad2(da);}' +
     'let todayStr=localTodayLabel();' +
     'google.script.run.withSuccessHandler(s=>{if(s)todayStr=s;}).getTodayLabel();' +
-    'function saveState(){try{sessionStorage.setItem("st",JSON.stringify({a:curArea,q:curQ,m:mode,v:savedView}));}catch(e){}}' +
+    'function saveState(){try{sessionStorage.setItem("st",JSON.stringify({a:curArea,q:curQ,m:mode,v:savedView,hp:hidePins}));}catch(e){}}' +
     'let initMode="map";' +
-    'try{const st=JSON.parse(sessionStorage.getItem("st")||"{}");curArea=st.a||"";curQ=st.q||"";if(st.v)savedView=st.v;}catch(e){}' +
+    'try{const st=JSON.parse(sessionStorage.getItem("st")||"{}");curArea=st.a||"";curQ=st.q||"";if(st.v)savedView=st.v;if(st.hp!==undefined)hidePins=!!st.hp;}catch(e){}' +
     'const areaBox=document.getElementById("areas");' +
+    'function togglePins(){hidePins=!hidePins;updatePinsBtn();if(mode==="map")render();saveState();}' +
+    'function updatePinsBtn(){const b=document.getElementById("bTogglePins");if(!b)return;b.textContent=hidePins?"ピン表示":"ピン非表示";b.classList.toggle("pins-hidden",hidePins);b.style.display=(mode==="map")?"":"none";}' +
     'function initApp() {' +
     '  areaBox.innerHTML="";' +
     '  const areas=[...new Set(DATA.map(r=>r.area))];' +
     '  function chip(label,val){const b=document.createElement("button");b.textContent=label;b.dataset.val=val;b.onclick=()=>{curArea=val;render();};areaBox.appendChild(b);}' +
-    '  chip("すべて","");areas.forEach(a=>chip(a.replace(/エリア$/,""),a));' +
+    '  chip("すべて","");' +
+    '  const pinBtn=document.createElement("button");pinBtn.id="bTogglePins";pinBtn.onclick=togglePins;areaBox.appendChild(pinBtn);' +
+    '  updatePinsBtn();' +
+    '  areas.forEach(a=>chip(a.replace(/エリア$/,""),a));' +
     '  document.getElementById("q").value=curQ;' +
     '  setMode(mode||initMode);' +
     '}' +
@@ -768,6 +775,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' document.getElementById("bMap").classList.toggle("on",m==="map");' +
     ' document.getElementById("list").style.display=(m==="list")?"":"none";' +
     ' document.getElementById("mapwrap").style.display=(m==="map")?"flex":"none";' +
+    ' updatePinsBtn();' +
     ' if(m==="map"){initMap();setTimeout(()=>map.invalidateSize(),50);}render();}' +
     'function locate(){if(!navigator.geolocation){alert("この端末では位置情報を利用できません。");return;}' +
     ' if(watchId!==null){if(lastPos)map.setView(lastPos,Math.max(map.getZoom(),16));return;}' +
@@ -782,8 +790,12 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' },{enableHighAccuracy:true,maximumAge:5000,timeout:15000});}' +
     'function stopLocate(){if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}document.getElementById("locate").classList.remove("on");}' +
     'function hits_(){const q=curQ.toLowerCase();return DATA.filter(r=>(!curArea||r.area===curArea)&&(!q||r.name.toLowerCase().includes(q)||r.addr.toLowerCase().includes(q)));}' +
-    'function render(){[...areaBox.children].forEach(b=>b.classList.toggle("on",b.dataset.val===curArea));' +
-    ' const hits=hits_();document.getElementById("count").textContent=hits.length+" 件"+(mode==="map"?"（ピン "+hits.filter(r=>r.lat!==null).length+"）":"");' +
+    'function render(){[...areaBox.children].forEach(b=>{if(b.dataset.val!==undefined)b.classList.toggle("on",b.dataset.val===curArea);});' +
+    ' updatePinsBtn();' +
+    ' const hits=hits_();' +
+    ' const pcount=hits.filter(r=>r.lat!==null).length;' +
+    ' const pinfo=hidePins?"（ピン非表示中）":"（ピン "+pcount+"）";' +
+    ' document.getElementById("count").textContent=hits.length+" 件"+(mode==="map"?pinfo:"");' +
     ' if(mode==="list")renderList(hits);else renderMap(hits);saveState();}' +
     'function renderList(hits){const list=document.getElementById("list");list.innerHTML="";' +
     ' if(hits.length===0){list.innerHTML="<div class=empty>該当なし</div>";return;}let lastArea=null;' +
@@ -823,7 +835,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' layer=L.layerGroup().addTo(map);' +
     ' if(savedView&&savedView.c){map.setView(savedView.c,savedView.z);}else{map.setView([35.62,139.57],14);}' +
     ' map.on("moveend",()=>{if(!savedView)savedView={};savedView.c=[map.getCenter().lat,map.getCenter().lng];savedView.z=map.getZoom();savedView.b=curBase;saveState();});}' +
-    'function renderMap(hits){if(!map)return;layer.clearLayers();const pts=[];' +
+    'function renderMap(hits){if(!map)return;layer.clearLayers();if(hidePins)return;const pts=[];' +
     ' const groups={};' +
     ' hits.forEach(r=>{if(r.lat===null||r.lng===null)return;const key=r.lat+","+r.lng;if(!groups[key])groups[key]=[];groups[key].push(r);});' +
     ' Object.keys(groups).forEach(key=>{const items=groups[key];const first=items[0];pts.push([first.lat,first.lng]);' +
