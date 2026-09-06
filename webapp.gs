@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.13.3',
+  VERSION: 'v1.11.13.4',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -495,7 +495,11 @@ function doGet_() {
   return HtmlService.createHtmlOutput(buildHtml_('[]', colorsJson, resultsJson, webappUrl, ''))
     .setTitle(WEBAPP.TITLE)
     .setFaviconUrl(WEBAPP.ICON_URL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
+    .addMetaTag('apple-mobile-web-app-capable', 'yes')
+    .addMetaTag('apple-mobile-web-app-status-bar-style', 'default')
+    .addMetaTag('mobile-web-app-capable', 'yes')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 /**
@@ -582,6 +586,11 @@ function urlFromFormula_(formula) {
 
 function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
   return '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' +
+    '<meta name="apple-mobile-web-app-capable" content="yes">' +
+    '<meta name="apple-mobile-web-app-status-bar-style" content="default">' +
+    '<meta name="apple-mobile-web-app-title" content="' + WEBAPP.TITLE + '">' +
+    '<link rel="apple-touch-icon" href="' + WEBAPP.ICON_URL + '">' +
     '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">' +
     '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>' +
     '<style>' +
