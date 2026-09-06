@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.14.008',
+  VERSION: 'v1.11.14.009',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -687,8 +687,17 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.leaflet-control-layers-expanded{padding:10px 14px!important;line-height:1.7!important;max-height:75vh;overflow-y:auto;background:var(--card)!important;color:var(--text)!important;}' +
     '.leaflet-control-layers-base label{margin:3px 0!important;cursor:pointer;display:flex;align-items:center;gap:6px;}' +
     '.leaflet-control-layers-base input{margin:0!important;cursor:pointer;}' +
-    '#selAreaPins{font-size:12px;font-weight:700;padding:2px 6px;height:30px;border:1.5px solid var(--accent);border-radius:8px;background:var(--card);color:var(--accent);cursor:pointer;max-width:160px;outline:none;text-overflow:ellipsis;white-space:nowrap;}' +
-    '#selAreaPins.pins-hidden{border-color:#d93025;color:#d93025;background:#fce8e6;}' +
+    '.pin-dropdown-btn{font-size:12px;font-weight:700;padding:0 8px;height:30px;border:1.5px solid var(--accent);border-radius:8px;background:var(--card);color:var(--accent);cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.06);}' +
+    '.pin-dropdown-btn.pins-hidden{border-color:#d93025;color:#d93025;background:#fce8e6;}' +
+    '.pin-dropdown-menu{position:absolute;top:34px;left:0;z-index:2100;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.25);padding:8px;min-width:210px;max-width:260px;display:flex;flex-direction:column;gap:6px;}' +
+    '.pdm-head{display:flex;align-items:center;justify-content:space-between;gap:4px;padding-bottom:6px;border-bottom:1px solid var(--line);}' +
+    '.pdm-btn-sm{font-size:11px;font-weight:700;padding:4px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--text);cursor:pointer;white-space:nowrap;}' +
+    '.pdm-btn-sm.pdm-primary{background:var(--accent);color:#fff;border-color:var(--accent);}' +
+    '.pdm-btn-sm.pdm-danger{color:#d93025;border-color:#fce8e6;background:#fce8e6;}' +
+    '.pdm-list{overflow-y:auto;-webkit-overflow-scrolling:touch;max-height:220px;display:flex;flex-direction:column;gap:2px;}' +
+    '.pdm-item{display:flex;align-items:center;gap:8px;padding:6px 6px;border-radius:6px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--text);user-select:none;}' +
+    '.pdm-item:hover{background:var(--bg);}' +
+    '.pdm-item input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent);cursor:pointer;margin:0;}' +
     '#btnPortal:active{background:var(--accent)!important;color:#fff!important;}' +
     '.leaflet-control-layers-overlays label{margin:4px 0!important;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600;}' +
     '.leaflet-control-layers-overlays input{margin:0!important;cursor:pointer;}' +
@@ -731,9 +740,25 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '<span class="ver" id="btnVersion">' + WEBAPP.VERSION + '</span>' +
     '<button id="btnUpdate" style="display:none;font-size:11px;color:var(--accent);background:var(--card);border:1px solid var(--accent);border-radius:999px;padding:2px 8px;margin-right:4px;white-space:nowrap;cursor:pointer;">マスター更新</button>' +
     '<div class="toggle"><button id="bList">一覧</button><button id="bMap" class="on">地図</button></div></div>' +
-    '<input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off">' +
-    '<input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off">' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;gap:6px;"><div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;"><select id="selAreaPins" aria-label="ピン・エリア表示切替"></select><div id="count" style="margin:0;font-size:11px;color:var(--sub);white-space:nowrap;"></div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0;"><a id="btnPortal" href="https://sites.google.com/view/jwnoborito-portal/" target="_top" style="font-size:11px;color:var(--accent);text-decoration:none;border:1px solid var(--accent);background:var(--card);padding:2px 8px;border-radius:12px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;font-weight:600;flex-shrink:0;">登戸会衆 区域サイト ↗</a><span id="user-email" style="font-size:11px;color:var(--sub);padding-right:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span></div></div></header>' +
+    '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">' +
+    '  <input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off" style="flex:2;min-width:0;margin:0;">' +
+    '  <a id="btnPortal" href="https://sites.google.com/view/jwnoborito-portal/" target="_top" style="flex:1;max-width:130px;height:36px;font-size:11px;color:var(--accent);text-decoration:none;border:1.5px solid var(--accent);background:var(--card);padding:0 4px;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;box-sizing:border-box;">区域サイト ↗</a>' +
+    '</div>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px;gap:6px;position:relative;">' +
+    '  <div id="pinDropdownWrap" style="display:flex;align-items:center;gap:8px;min-width:0;position:relative;">' +
+    '    <button id="btnPinDropdown" type="button" class="pin-dropdown-btn">📍 ピン表示: すべて ▼</button>' +
+    '    <div id="count" style="margin:0;font-size:12px;font-weight:700;color:var(--sub);white-space:nowrap;"></div>' +
+    '    <div id="pinDropdownMenu" class="pin-dropdown-menu" style="display:none;">' +
+    '      <div class="pdm-head">' +
+    '        <button id="pdmAll" type="button" class="pdm-btn-sm">すべて表示</button>' +
+    '        <button id="pdmNone" type="button" class="pdm-btn-sm pdm-danger">ピン非表示</button>' +
+    '        <button id="pdmClose" type="button" class="pdm-btn-sm pdm-primary">完了</button>' +
+    '      </div>' +
+    '      <div id="pdmList" class="pdm-list"></div>' +
+    '    </div>' +
+    '  </div>' +
+    '  <span id="user-email" style="font-size:11px;color:var(--sub);padding-right:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>' +
+    '</div></header>' +
     '<main id="list"></main>' +
     '<div id="mapwrap"><div id="map"></div><button id="locate">現在地</button>' +
     '  <div id="overlayBar" style="display:none;">' +
@@ -814,41 +839,83 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'function isoFromDisplayDate(s){const t=String(s||"").trim();if(!t)return "";if(/^\\d{4}-\\d{2}-\\d{2}$/.test(t))return t;const m=t.match(/^(\\d{1,2})\\/(\\d{1,2})/);if(!m)return "";const y=(new Date()).getFullYear(),mo=Number(m[1]),da=Number(m[2]),dt=new Date(y,mo-1,da);if(dt.getFullYear()!==y||dt.getMonth()+1!==mo||dt.getDate()!==da)return "";return y+"-"+pad2(mo)+"-"+pad2(da);}' +
     'let todayStr=localTodayLabel();' +
     'google.script.run.withSuccessHandler(s=>{if(s)todayStr=s;}).getTodayLabel();' +
-    'function saveState(){try{sessionStorage.setItem("st",JSON.stringify({a:curArea,q:curQ,m:mode,v:savedView,hp:hidePins}));}catch(e){}}' +
+    'let selectedAreas=new Set();let allAreaList=[];' +
+    'function saveState(){try{sessionStorage.setItem("st",JSON.stringify({sa:Array.from(selectedAreas),q:curQ,m:mode,v:savedView,hp:hidePins}));}catch(e){}}' +
     'let initMode="map";' +
-    'try{const st=JSON.parse(sessionStorage.getItem("st")||"{}");curArea=st.a||"";curQ=st.q||"";if(st.v)savedView=st.v;if(st.hp!==undefined)hidePins=!!st.hp;}catch(e){}' +
-    'const selAreaPins=document.getElementById("selAreaPins");' +
-    'function updateAreaSelect(){' +
-    '  if(!selAreaPins)return;' +
-    '  selAreaPins.innerHTML="";' +
-    '  const optAll=document.createElement("option");optAll.value="";optAll.textContent="📍 すべて (全ピン)";selAreaPins.appendChild(optAll);' +
-    '  const optNone=document.createElement("option");optNone.value="__none__";optNone.textContent="🚫 ピン非表示";selAreaPins.appendChild(optNone);' +
-    '  const grp=document.createElement("optgroup");grp.label="エリア別ピン表示";' +
-    '  const areas=[...new Set(DATA.map(r=>r.area))].filter(Boolean);' +
-    '  areas.forEach(a=>{' +
-    '    const opt=document.createElement("option");opt.value=a;' +
-    '    const cnt=DATA.filter(r=>r.area===a).length;' +
-    '    opt.textContent=a.replace(/エリア$/,"") + " (" + cnt + "件)";' +
-    '    grp.appendChild(opt);' +
-    '  });' +
-    '  selAreaPins.appendChild(grp);' +
-    '  if(hidePins){selAreaPins.value="__none__";}' +
-    '  else if(curArea){selAreaPins.value=curArea;}' +
-    '  else{selAreaPins.value="";}' +
-    '  selAreaPins.classList.toggle("pins-hidden",hidePins);' +
+    'try{const st=JSON.parse(sessionStorage.getItem("st")||"{}");curQ=st.q||"";if(st.sa&&Array.isArray(st.sa))selectedAreas=new Set(st.sa);if(st.v)savedView=st.v;if(st.hp!==undefined)hidePins=!!st.hp;}catch(e){}' +
+    'const btnPinDropdown=document.getElementById("btnPinDropdown");' +
+    'const pinDropdownMenu=document.getElementById("pinDropdownMenu");' +
+    'const pdmList=document.getElementById("pdmList");' +
+    'const pdmAll=document.getElementById("pdmAll");' +
+    'const pdmNone=document.getElementById("pdmNone");' +
+    'const pdmClose=document.getElementById("pdmClose");' +
+    'function updatePinDropdownUI(){' +
+    '  if(!btnPinDropdown)return;' +
+    '  const total=allAreaList.length;' +
+    '  const selCount=selectedAreas.size;' +
+    '  if(hidePins){' +
+    '    btnPinDropdown.textContent="🚫 ピン非表示 ▼";' +
+    '    btnPinDropdown.classList.add("pins-hidden");' +
+    '  }else if(selCount===0||selCount===total){' +
+    '    btnPinDropdown.textContent="📍 ピン表示: すべて ▼";' +
+    '    btnPinDropdown.classList.remove("pins-hidden");' +
+    '  }else{' +
+    '    btnPinDropdown.textContent="📍 ピン表示: "+selCount+"エリア ▼";' +
+    '    btnPinDropdown.classList.remove("pins-hidden");' +
+    '  }' +
     '}' +
-    'if(selAreaPins){' +
-    '  selAreaPins.onchange=()=>{' +
-    '    const v=selAreaPins.value;' +
-    '    if(v==="__none__"){hidePins=true;}' +
-    '    else{hidePins=false;curArea=v;}' +
-    '    selAreaPins.classList.toggle("pins-hidden",hidePins);' +
-    '    render();' +
-    '    saveState();' +
+    'function refreshCheckboxes(){' +
+    '  if(!pdmList)return;' +
+    '  const chks=pdmList.querySelectorAll("input[type=checkbox]");' +
+    '  chks.forEach(chk=>{chk.checked=!hidePins&&selectedAreas.has(chk.value);});' +
+    '  updatePinDropdownUI();' +
+    '}' +
+    'function buildPinDropdown(){' +
+    '  if(!pdmList)return;' +
+    '  allAreaList=[...new Set(DATA.map(r=>r.area))].filter(Boolean);' +
+    '  if(selectedAreas.size===0&&!hidePins){allAreaList.forEach(a=>selectedAreas.add(a));}' +
+    '  pdmList.innerHTML="";' +
+    '  allAreaList.forEach(a=>{' +
+    '    const cnt=DATA.filter(r=>r.area===a).length;' +
+    '    const item=document.createElement("label");item.className="pdm-item";' +
+    '    const chk=document.createElement("input");chk.type="checkbox";chk.value=a;chk.checked=!hidePins&&selectedAreas.has(a);' +
+    '    chk.onchange=()=>{' +
+    '      if(chk.checked){selectedAreas.add(a);hidePins=false;}' +
+    '      else{selectedAreas.delete(a);if(selectedAreas.size===0)hidePins=true;}' +
+    '      updatePinDropdownUI();render();saveState();' +
+    '    };' +
+    '    const txt=document.createElement("span");txt.textContent=a.replace(/エリア$/,"")+" ("+cnt+"件)";' +
+    '    item.appendChild(chk);item.appendChild(txt);pdmList.appendChild(item);' +
+    '  });' +
+    '  updatePinDropdownUI();' +
+    '}' +
+    'if(btnPinDropdown&&pinDropdownMenu){' +
+    '  btnPinDropdown.onclick=e=>{' +
+    '    e.stopPropagation();' +
+    '    const isShown=pinDropdownMenu.style.display==="flex";' +
+    '    pinDropdownMenu.style.display=isShown?"none":"flex";' +
+    '    if(!isShown)refreshCheckboxes();' +
     '  };' +
     '}' +
+    'if(pdmAll){' +
+    '  pdmAll.onclick=()=>{' +
+    '    hidePins=false;allAreaList.forEach(a=>selectedAreas.add(a));refreshCheckboxes();render();saveState();' +
+    '  };' +
+    '}' +
+    'if(pdmNone){' +
+    '  pdmNone.onclick=()=>{' +
+    '    hidePins=true;selectedAreas.clear();refreshCheckboxes();render();saveState();' +
+    '  };' +
+    '}' +
+    'if(pdmClose){' +
+    '  pdmClose.onclick=()=>{pinDropdownMenu.style.display="none";};' +
+    '}' +
+    'document.addEventListener("click",e=>{' +
+    '  const wrap=document.getElementById("pinDropdownWrap");' +
+    '  if(wrap&&!wrap.contains(e.target)&&pinDropdownMenu){pinDropdownMenu.style.display="none";}' +
+    '});' +
     'function initApp() {' +
-    '  updateAreaSelect();' +
+    '  buildPinDropdown();' +
     '  document.getElementById("q").value=curQ;' +
     '  setMode(mode||initMode);' +
     '}' +
@@ -890,7 +957,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' },err=>{stopLocate();if(err.code===1)alert("位置情報の利用が許可されていません。");else alert("現在地を取得できませんでした（"+err.message+"）");' +
     ' },{enableHighAccuracy:true,maximumAge:5000,timeout:15000});}' +
     'function stopLocate(){if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}document.getElementById("locate").classList.remove("on");}' +
-    'function hits_(){const q=curQ.toLowerCase();return DATA.filter(r=>(!curArea||r.area===curArea)&&(!q||r.name.toLowerCase().includes(q)||r.addr.toLowerCase().includes(q)));}' +
+    'function hits_(){const q=curQ.toLowerCase();return DATA.filter(r=>((selectedAreas.size===0||selectedAreas.size===allAreaList.length||selectedAreas.has(r.area)))&&(!q||r.name.toLowerCase().includes(q)||r.addr.toLowerCase().includes(q)));}' +
     'function render(){' +
     ' const hits=hits_();' +
     ' document.getElementById("count").textContent=hits.length+"件";' +
@@ -1401,6 +1468,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.14.009: 検索窓重複解消、検索窓2/3化＋区域サイトリンク横配置、ピン表示複数選択ドロップダウン対応。\\n" +' +
     '      "・v1.11.14.008: ピン表示切替とエリア選択をプルダウンに統合し、件数表示箇所へ集約。ヘッダーを1行削減し地図表示領域を拡大。\\n" +' +
     '      "・v1.11.14.007: 区域地図と衛星写真のレイヤーボタンを上下に分離配置。透過率の初期値を50%とし端末記憶に対応。\\n" +' +
     '      "・v1.11.14.006: 登戸区域地図8画像の初期座標（初期位置・拡大縮小幅・縦横比）を微調整済みの確定値に更新。\\n" +' +
