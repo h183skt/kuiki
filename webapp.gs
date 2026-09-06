@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.15',
+  VERSION: 'v1.11.16',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -601,7 +601,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}' +
     'html,body{margin:0;height:100%;}' +
     'body{font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;}' +
-    'header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 12px;z-index:1001;}' +
+    'header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 12px;position:relative;z-index:1100;}' +
     '.topbar{display:flex;align-items:center;gap:8px;margin-bottom:8px;}' +
     'h1{font-size:16px;margin:0;flex:1;}' +
     '.ver{font-size:11px;color:var(--sub);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-right:4px;white-space:nowrap;cursor:pointer;user-select:none;}' +
@@ -724,8 +724,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.ctrl-btn-badge{position:absolute;bottom:1px;right:1px;font-size:9px;font-weight:800;line-height:1.1;padding:1px 3px;border-radius:3px;background:var(--accent);color:#fff;pointer-events:none;box-shadow:0 1px 2px rgba(0,0,0,0.3);}' +
     '.lyr-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card);z-index:1;}' +
     '.lyr-title{font-size:12px;font-weight:800;white-space:nowrap;}' +
-    '.leaflet-top{z-index:1002;}' +
+    '.leaflet-top{z-index:1000;}' +
+    '.leaflet-top.leaflet-right{z-index:1002;}' +
     '.leaflet-control-layers-expanded{z-index:1003;}' +
+    '.leaflet-control-zoom{z-index:990;}' +
     '.leaflet-control-base-map .ctrl-btn-badge{background:#1e8e3e;}' +
     '</style></head><body>' +
     '<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">' +
@@ -1478,6 +1480,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.16: ピン表示メニューを開いた際に地図の拡大縮小（＋ー）ボタンが手前に被る問題を修正（背面に配置）。\\n" +' +
     '      "・v1.11.15: 登戸区域地図オーバーレイ（微調整機能・透過率記憶）、背景写真/地図の独立切替、ピン表示複数選択、検索窓と区域サイト配置を最適化。\\n" +' +
     '      "・v1.11.14.014: 「区域」「写真」レイヤー選択パネルに「完了」ボタンを追加（ピン表示と同じ操作で閉じられます）。\\n" +' +
     '      "・v1.11.14.013: 「写真」「区域」レイヤーのパネルが「現在地」ボタンの下に隠れる問題を修正（最前面に表示）。\\n" +' +
