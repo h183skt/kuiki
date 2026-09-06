@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.14',
+  VERSION: 'v1.11.14.001',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -693,6 +693,19 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '#bTogglePins{font-weight:600;display:inline-flex;align-items:center;gap:4px;}' +
     '#bTogglePins.pins-hidden{background:#fce8e6!important;border-color:#d93025!important;color:#d93025!important;font-weight:700!important;}' +
     '#btnPortal:active{background:var(--accent)!important;color:#fff!important;}' +
+    '.leaflet-control-layers-overlays label{margin:4px 0!important;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600;}' +
+    '.leaflet-control-layers-overlays input{margin:0!important;cursor:pointer;}' +
+    '.leaflet-control-layers-separator{border-top:1px solid var(--line)!important;margin:8px 0!important;}' +
+    '#overlayBar{position:absolute;left:10px;bottom:24px;z-index:1000;background:rgba(255,255,255,0.95);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:12px;padding:8px 12px;box-shadow:0 3px 12px rgba(0,0,0,.15);max-width:calc(100vw - 110px);}' +
+    '.obar-row{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;}' +
+    '#overlayOpacity{width:80px;accent-color:var(--accent);cursor:pointer;}' +
+    '#btnAdjustMode{font-size:11px;padding:3px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);cursor:pointer;white-space:nowrap;font-weight:600;}' +
+    '#btnAdjustMode.on{background:var(--accent);color:#fff;border-color:var(--accent);}' +
+    '#adjustBox{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:11.5px;display:flex;flex-direction:column;gap:6px;}' +
+    '.adj-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}' +
+    '.adj-btn{padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--text);cursor:pointer;font-size:12px;font-weight:700;line-height:1;}' +
+    '.adj-btn:active{background:var(--bg);}' +
+    '.corner-pin{width:18px;height:18px;background:var(--accent);border:2px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3);cursor:move;touch-action:none;}' +
     '</style></head><body>' +
     '<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">' +
     '  <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 4px 16px rgba(0,0,0,0.08);display:flex;flex-direction:column;align-items:center;">' +
@@ -713,7 +726,42 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '<input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off">' +
     '<div id="areas"></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:6px;"><div id="count" style="margin:0;white-space:nowrap;"></div><div style="display:flex;align-items:center;gap:6px;min-width:0;"><a id="btnPortal" href="https://sites.google.com/view/jwnoborito-portal/" target="_top" style="font-size:11px;color:var(--accent);text-decoration:none;border:1px solid var(--accent);background:var(--card);padding:2px 8px;border-radius:12px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;font-weight:600;flex-shrink:0;">登戸会衆 区域サイト ↗</a><span id="user-email" style="font-size:11px;color:var(--sub);padding-right:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span></div></div></header>' +
     '<main id="list"></main>' +
-    '<div id="mapwrap"><div id="map"></div><button id="locate">現在地</button></div>' +
+    '<div id="mapwrap"><div id="map"></div><button id="locate">現在地</button>' +
+    '  <div id="overlayBar" style="display:none;">' +
+    '    <div class="obar-row">' +
+    '      <span>透過率:</span>' +
+    '      <input id="overlayOpacity" type="range" min="0" max="100" value="65">' +
+    '      <span id="opacityTxt">65%</span>' +
+    '      <button id="btnAdjustMode">位置調整</button>' +
+    '    </div>' +
+    '    <div id="adjustBox" style="display:none;">' +
+    '      <div class="adj-row">' +
+    '        <span>対象:</span>' +
+    '        <select id="adjTarget" style="font-size:11.5px;padding:2px 4px;max-width:140px;border:1px solid var(--line);border-radius:4px;background:var(--card);"></select>' +
+    '      </div>' +
+    '      <div class="adj-row">' +
+    '        <span>移動:</span>' +
+    '        <button class="adj-btn" id="adjUp" title="北へ移動">↑</button>' +
+    '        <button class="adj-btn" id="adjDown" title="南へ移動">↓</button>' +
+    '        <button class="adj-btn" id="adjLeft" title="西へ移動">←</button>' +
+    '        <button class="adj-btn" id="adjRight" title="東へ移動">→</button>' +
+    '      </div>' +
+    '      <div class="adj-row">' +
+    '        <span>拡縮:</span>' +
+    '        <button class="adj-btn" id="adjZoomIn" title="全体拡大">＋</button>' +
+    '        <button class="adj-btn" id="adjZoomOut" title="全体縮小">−</button>' +
+    '        <button class="adj-btn" id="adjWiden" title="横幅拡大">幅＋</button>' +
+    '        <button class="adj-btn" id="adjNarrow" title="横幅縮小">幅−</button>' +
+    '        <button class="adj-btn" id="adjTaller" title="縦幅拡大">高＋</button>' +
+    '        <button class="adj-btn" id="adjShorter" title="縦幅縮小">高−</button>' +
+    '      </div>' +
+    '      <div class="adj-row" style="margin-top:2px;">' +
+    '        <button class="adj-btn" id="adjSave" style="background:var(--accent);color:#fff;border-color:var(--accent);">位置を保存</button>' +
+    '        <button class="adj-btn" id="adjReset" style="color:var(--sub);">初期値</button>' +
+    '      </div>' +
+    '    </div>' +
+    '  </div>' +
+    '</div>' +
     '<div id="rec"><div id="recinner"><div id="rechead"><div style="flex:1;min-width:0;"><h2 id="rectitle" style="font-size:18px;font-weight:800;color:var(--text);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">訪問記録</h2><div id="rec-datetime" style="font-size:18px;color:var(--accent);margin-top:4px;font-weight:800;letter-spacing:-0.5px;"></div></div><button id="recclose">閉じる</button></div><div id="recbody"></div><div id="rec-dir" style="padding:10px 12px;display:none;background:var(--card);border-top:1px solid var(--line);"></div></div></div>' +
     '<div id="edit"><div id="editbox">' +
     '<div class="edithead"><p id="edittitle">記録</p><button id="editclose" aria-label="閉じる">×</button></div>' +
@@ -841,9 +889,151 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  "写真 (1945-50 米軍)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/ort_USA10/{z}/{x}/{y}.png",{minZoom:10,maxNativeZoom:17,maxZoom:19,attribution:ga}),' +
     '  "写真 (1936頃 陸軍)":L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/ort_riku10/{z}/{x}/{y}.png",{minZoom:11,maxNativeZoom:17,maxZoom:19,attribution:ga})' +
     ' };' +
+    ' const MAP_OVERLAY_BASE="https://raw.githubusercontent.com/h183skt/kuiki/feature/area-map-overlay/%E7%99%BB%E6%88%B8%E5%8C%BA%E5%9F%9F%E5%9C%B0%E5%9B%B3/";' +
+    ' const OVERLAY_DEFS=[' +
+    '  {id:"161-175",label:"登戸 161-175 (区画整理)",file:"登戸区域_161-175",defBounds:[[35.616138,139.558857],[35.622527,139.569327]]},' +
+    '  {id:"001-048",label:"登戸 001-048 (宿河原)",file:"登戸区域_001-048",defBounds:[[35.6080,139.5730],[35.6235,139.5935]]},' +
+    '  {id:"049-059",label:"登戸 049-059 (登戸・多摩川)",file:"登戸区域_049-059",defBounds:[[35.6160,139.5670],[35.6265,139.5790]]},' +
+    '  {id:"060-099",label:"登戸 060-099 (登戸・遊園)",file:"登戸区域_060-099",defBounds:[[35.6110,139.5620],[35.6225,139.5780]]},' +
+    '  {id:"100-123",label:"登戸 100-123 (生田緑地)",file:"登戸区域_100-123",defBounds:[[35.6015,139.5530],[35.6155,139.5670]]},' +
+    '  {id:"124-144",label:"登戸 124-144 (登戸公園)",file:"登戸区域_124-144",defBounds:[[35.6185,139.5590],[35.6285,139.5710]]},' +
+    '  {id:"145-160",label:"登戸 145-160 (カリタス)",file:"登戸区域_145-160",defBounds:[[35.6220,139.5490],[35.6350,139.5650]]},' +
+    '  {id:"176-205",label:"登戸 176-205 (台和・宿河原)",file:"登戸区域_176-205",defBounds:[[35.6080,139.5630],[35.6190,139.5760]]}' +
+    ' ];' +
+    ' let customBounds={};try{const bs=localStorage.getItem("kuiki_overlay_bounds");if(bs)customBounds=JSON.parse(bs);}catch(e){}' +
+    ' let curOpacity=(savedView&&savedView.overlayOpacity!==undefined)?savedView.overlayOpacity:0.65;' +
+    ' const overlayLayers={};const overlayMapLayers={};const activeOverlays=new Set((savedView&&savedView.overlays)?savedView.overlays:[]);' +
+    ' OVERLAY_DEFS.forEach(d=>{' +
+    '  const b=customBounds[d.id]||d.defBounds;' +
+    '  const url=MAP_OVERLAY_BASE+encodeURIComponent(d.file)+".webp";' +
+    '  const lyr=L.imageOverlay(url,b,{opacity:curOpacity,interactive:false,zIndex:200});' +
+    '  overlayLayers[d.id]={layer:lyr,def:d,bounds:b};' +
+    '  overlayMapLayers[d.label]=lyr;' +
+    ' });' +
     ' let curBase=(savedView&&savedView.b&&baseMaps[savedView.b])?savedView.b:"通常 (OSM)";' +
     ' baseMaps[curBase].addTo(map);' +
-    ' L.control.layers(baseMaps,null,{position:"topright"}).addTo(map);' +
+    ' L.control.layers(baseMaps,overlayMapLayers,{position:"topright"}).addTo(map);' +
+    ' OVERLAY_DEFS.forEach(d=>{if(activeOverlays.has(d.id))overlayLayers[d.id].layer.addTo(map);});' +
+    ' const obar=document.getElementById("overlayBar");' +
+    ' const opSlider=document.getElementById("overlayOpacity");' +
+    ' const opTxt=document.getElementById("opacityTxt");' +
+    ' const btnAdj=document.getElementById("btnAdjustMode");' +
+    ' const adjBox=document.getElementById("adjustBox");' +
+    ' const selTarget=document.getElementById("adjTarget");' +
+    ' let adjustMode=false;let adjustMarkers=[];' +
+    ' function updateOverlayBar(){' +
+    '  if(!obar)return;' +
+    '  if(activeOverlays.size>0){' +
+    '   obar.style.display="block";' +
+    '   if(selTarget){' +
+    '    const prevVal=selTarget.value;' +
+    '    selTarget.innerHTML="";' +
+    '    OVERLAY_DEFS.forEach(d=>{' +
+    '     if(activeOverlays.has(d.id)){' +
+    '      const opt=document.createElement("option");opt.value=d.id;opt.textContent=d.label.replace("登戸 ","");' +
+    '      selTarget.appendChild(opt);' +
+    '     }' +
+    '    });' +
+    '    if(prevVal&&activeOverlays.has(prevVal))selTarget.value=prevVal;' +
+    '   }' +
+    '  }else{' +
+    '   obar.style.display="none";' +
+    '   if(adjustMode)toggleAdjustMode(false);' +
+    '  }' +
+    ' }' +
+    ' if(opSlider&&opTxt){' +
+    '  opSlider.value=Math.round(curOpacity*100);opTxt.textContent=Math.round(curOpacity*100)+"%";' +
+    '  opSlider.oninput=()=>{' +
+    '   const v=parseInt(opSlider.value,10);curOpacity=v/100;opTxt.textContent=v+"%";' +
+    '   Object.keys(overlayLayers).forEach(k=>overlayLayers[k].layer.setOpacity(curOpacity));' +
+    '   if(!savedView)savedView={};savedView.overlayOpacity=curOpacity;saveState();' +
+    '  };' +
+    ' }' +
+    ' function clearAdjustMarkers(){adjustMarkers.forEach(m=>map.removeLayer(m));adjustMarkers=[];}' +
+    ' function refreshAdjustMarkers(){' +
+    '  clearAdjustMarkers();' +
+    '  if(!adjustMode||!selTarget||!selTarget.value)return;' +
+    '  const id=selTarget.value;const item=overlayLayers[id];if(!item)return;' +
+    '  const b=item.bounds;' +
+    '  const pts=[' +
+    '   {pos:[b[0][0],b[0][1]],idx:"sw"},' +
+    '   {pos:[b[1][0],b[1][1]],idx:"ne"},' +
+    '   {pos:[b[1][0],b[0][1]],idx:"nw"},' +
+    '   {pos:[b[0][0],b[1][1]],idx:"se"}' +
+    '  ];' +
+    '  pts.forEach(p=>{' +
+    '   const m=L.marker(p.pos,{draggable:true,icon:L.divIcon({className:"corner-pin",iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map);' +
+    '   m.on("drag",()=>{' +
+    '    const lat=m.getLatLng().lat;const lng=m.getLatLng().lng;' +
+    '    if(p.idx==="sw"){b[0][0]=lat;b[0][1]=lng;}' +
+    '    else if(p.idx==="ne"){b[1][0]=lat;b[1][1]=lng;}' +
+    '    else if(p.idx==="nw"){b[1][0]=lat;b[0][1]=lng;}' +
+    '    else if(p.idx==="se"){b[0][0]=lat;b[1][1]=lng;}' +
+    '    item.layer.setBounds(b);' +
+    '    adjustMarkers.forEach(om=>{' +
+    '     if(om===m)return;' +
+    '     if(om._posIdx==="sw")om.setLatLng([b[0][0],b[0][1]]);' +
+    '     else if(om._posIdx==="ne")om.setLatLng([b[1][0],b[1][1]]);' +
+    '     else if(om._posIdx==="nw")om.setLatLng([b[1][0],b[0][1]]);' +
+    '     else if(om._posIdx==="se")om.setLatLng([b[0][0],b[1][1]]);' +
+    '    });' +
+    '   });' +
+    '   m._posIdx=p.idx;adjustMarkers.push(m);' +
+    '  });' +
+    ' }' +
+    ' function toggleAdjustMode(flag){' +
+    '  adjustMode=(flag!==undefined)?flag:!adjustMode;' +
+    '  if(btnAdj)btnAdj.classList.toggle("on",adjustMode);' +
+    '  if(adjBox)adjBox.style.display=adjustMode?"flex":"none";' +
+    '  if(adjustMode)refreshAdjustMarkers();else clearAdjustMarkers();' +
+    ' }' +
+    ' if(btnAdj)btnAdj.onclick=()=>toggleAdjustMode();' +
+    ' if(selTarget)selTarget.onchange=()=>refreshAdjustMarkers();' +
+    ' function nudge(dLat,dLng,scaleLat,scaleLng){' +
+    '  if(!selTarget||!selTarget.value)return;' +
+    '  const id=selTarget.value;const item=overlayLayers[id];if(!item)return;' +
+    '  const b=item.bounds;' +
+    '  const cLat=(b[0][0]+b[1][0])/2;const cLng=(b[0][1]+b[1][1])/2;' +
+    '  let h=(b[1][0]-b[0][0])*scaleLat;let w=(b[1][1]-b[0][1])*scaleLng;' +
+    '  const nLat=cLat+dLat;const nLng=cLng+dLng;' +
+    '  b[0][0]=nLat-h/2;b[1][0]=nLat+h/2;b[0][1]=nLng-w/2;b[1][1]=nLng+w/2;' +
+    '  item.layer.setBounds(b);refreshAdjustMarkers();' +
+    ' }' +
+    ' const step=0.00008;' +
+    ' const bindAdj=(id,fn)=>{const el=document.getElementById(id);if(el)el.onclick=fn;};' +
+    ' bindAdj("adjUp",()=>nudge(step,0,1,1));' +
+    ' bindAdj("adjDown",()=>nudge(-step,0,1,1));' +
+    ' bindAdj("adjLeft",()=>nudge(0,-step,1,1));' +
+    ' bindAdj("adjRight",()=>nudge(0,step,1,1));' +
+    ' bindAdj("adjZoomIn",()=>nudge(0,0,1.015,1.015));' +
+    ' bindAdj("adjZoomOut",()=>nudge(0,0,0.985,0.985));' +
+    ' bindAdj("adjWiden",()=>nudge(0,0,1,1.015));' +
+    ' bindAdj("adjNarrow",()=>nudge(0,0,1,0.985));' +
+    ' bindAdj("adjTaller",()=>nudge(0,0,1.015,1));' +
+    ' bindAdj("adjShorter",()=>nudge(0,0,0.985,1));' +
+    ' bindAdj("adjSave",()=>{' +
+    '  if(!selTarget||!selTarget.value)return;' +
+    '  const id=selTarget.value;const item=overlayLayers[id];if(!item)return;' +
+    '  customBounds[id]=item.bounds;' +
+    '  try{localStorage.setItem("kuiki_overlay_bounds",JSON.stringify(customBounds));alert("区域図「"+item.def.label+"」の位置を保存しました。");}catch(e){alert("保存に失敗しました: "+e);}' +
+    ' });' +
+    ' bindAdj("adjReset",()=>{' +
+    '  if(!selTarget||!selTarget.value)return;' +
+    '  const id=selTarget.value;const item=overlayLayers[id];if(!item)return;' +
+    '  item.bounds=JSON.parse(JSON.stringify(item.def.defBounds));' +
+    '  delete customBounds[id];' +
+    '  try{localStorage.setItem("kuiki_overlay_bounds",JSON.stringify(customBounds));}catch(e){}' +
+    '  item.layer.setBounds(item.bounds);refreshAdjustMarkers();alert("初期位置に戻しました。");' +
+    ' });' +
+    ' map.on("overlayadd",e=>{' +
+    '  const d=OVERLAY_DEFS.find(x=>x.label===e.name);' +
+    '  if(d){activeOverlays.add(d.id);if(!savedView)savedView={};savedView.overlays=Array.from(activeOverlays);saveState();updateOverlayBar();if(adjustMode)refreshAdjustMarkers();}' +
+    ' });' +
+    ' map.on("overlayremove",e=>{' +
+    '  const d=OVERLAY_DEFS.find(x=>x.label===e.name);' +
+    '  if(d){activeOverlays.delete(d.id);if(!savedView)savedView={};savedView.overlays=Array.from(activeOverlays);saveState();updateOverlayBar();if(adjustMode)refreshAdjustMarkers();}' +
+    ' });' +
+    ' updateOverlayBar();' +
     ' map.on("baselayerchange",e=>{curBase=e.name;if(!savedView)savedView={};savedView.b=curBase;saveState();});' +
     ' layer=L.layerGroup().addTo(map);' +
     ' if(savedView&&savedView.c){map.setView(savedView.c,savedView.z);}else{map.setView([35.62,139.57],14);}' +
@@ -1083,6 +1273,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.14.001: 登戸区域地図（8画像）のオーバーレイ重ね合わせ表示、透過率スライダー、位置微調整機能を追加。\\n" +' +
     '      "・v1.11.14: 背景地図切替（国土地理院の最新・年代別空中写真など13種）とピン非表示ボタン、区域サイトリンクを追加。\\n" +' +
     '      "・v1.11.13: バージョン番号の再カウントアップと更新通知・デプロイ確認のためのテストリリース（機能変更なし）。\\n" +' +
     '      "・v1.11.12: バージョン番号のカウントアップとデプロイ確認のためのテストリリース（機能変更なし）。\\n" +' +
