@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.13.4',
+  VERSION: 'v1.11.13.5',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -371,6 +371,12 @@ function isValidAccess_(email) {
 
 
 
+function cleanErrorMessage_(e) {
+  return String((e && (e.stack || e.message)) ? (e.stack || e.message) : e || '')
+    .replace(/^(Exception|Error):\s*/, '')
+    .trim();
+}
+
 function friendlySheetAccessError_(e, mode) {
   const msg = String(e);
   if (msg.indexOf('権限') !== -1 || msg.toLowerCase().indexOf('permission') !== -1 || msg.toLowerCase().indexOf('access') !== -1) {
@@ -495,10 +501,7 @@ function doGet_() {
   return HtmlService.createHtmlOutput(buildHtml_('[]', colorsJson, resultsJson, webappUrl, ''))
     .setTitle(WEBAPP.TITLE)
     .setFaviconUrl(WEBAPP.ICON_URL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
-    .addMetaTag('apple-mobile-web-app-capable', 'yes')
-    .addMetaTag('apple-mobile-web-app-status-bar-style', 'default')
-    .addMetaTag('mobile-web-app-capable', 'yes')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
