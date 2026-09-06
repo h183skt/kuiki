@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.14.011',
+  VERSION: 'v1.11.14.014',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -722,6 +722,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.corner-pin{width:24px;height:24px;background:var(--accent);border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:move;touch-action:none;}' +
     '.leaflet-control-layers-toggle{position:relative;display:flex!important;align-items:center;justify-content:center;}' +
     '.ctrl-btn-badge{position:absolute;bottom:1px;right:1px;font-size:9px;font-weight:800;line-height:1.1;padding:1px 3px;border-radius:3px;background:var(--accent);color:#fff;pointer-events:none;box-shadow:0 1px 2px rgba(0,0,0,0.3);}' +
+    '.lyr-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card);z-index:1;}' +
+    '.lyr-title{font-size:12px;font-weight:800;white-space:nowrap;}' +
+    '.leaflet-top{z-index:1002;}' +
+    '.leaflet-control-layers-expanded{z-index:1003;}' +
     '.leaflet-control-base-map .ctrl-btn-badge{background:#1e8e3e;}' +
     '</style></head><body>' +
     '<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">' +
@@ -742,7 +746,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '<div class="toggle"><button id="bList">一覧</button><button id="bMap" class="on">地図</button></div></div>' +
     '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">' +
     '  <input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off" style="flex:2;min-width:0;margin:0;">' +
-    '  <a id="btnPortal" href="https://sites.google.com/view/jwnoborito-portal/" target="_blank" rel="noopener" style="flex:1;max-width:130px;height:36px;font-size:11px;color:var(--accent);text-decoration:none;border:1.5px solid var(--accent);background:var(--card);padding:0 4px;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;box-sizing:border-box;">区域サイト ↗</a>' +
+    '  <a id="btnPortal" href="https://sites.google.com/view/jwnoborito-portal/" target="_top" style="flex:1;max-width:130px;height:36px;font-size:11px;color:var(--accent);text-decoration:none;border:1.5px solid var(--accent);background:var(--card);padding:0 4px;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;box-sizing:border-box;">区域サイト →</a>' +
     '</div>' +
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px;gap:6px;position:relative;">' +
     '  <div id="pinDropdownWrap" style="display:flex;align-items:center;gap:8px;min-width:0;position:relative;">' +
@@ -1023,31 +1027,33 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' baseMaps[curBase].addTo(map);' +
     ' const overlayControl=L.control.layers(null,overlayMapLayers,{position:"topright",collapsed:true}).addTo(map);' +
     ' const baseControl=L.control.layers(baseMaps,null,{position:"topright",collapsed:true}).addTo(map);' +
+    ' const addLyrHead=(ctrl,el,label,color)=>{' +
+    '  const inject=()=>{' +
+    '   const targetEl=el.querySelector(".leaflet-control-layers-list, form")||el;' +
+    '   if(!targetEl||targetEl.querySelector(".lyr-head"))return;' +
+    '   const head=document.createElement("div");head.className="lyr-head";' +
+    '   const t=document.createElement("span");t.className="lyr-title";t.style.color=color;t.textContent=label;' +
+    '   const done=document.createElement("button");done.type="button";done.className="pdm-btn-sm pdm-primary";done.textContent="完了";' +
+    '   done.onclick=ev=>{ev.preventDefault();ev.stopPropagation();if(typeof ctrl.collapse==="function")ctrl.collapse();else el.classList.remove("leaflet-control-layers-expanded");};' +
+    '   head.appendChild(t);head.appendChild(done);targetEl.insertBefore(head,targetEl.firstChild);' +
+    '  };' +
+    '  inject();' +
+    '  el.addEventListener("mouseenter",inject);' +
+    '  el.addEventListener("click",inject);' +
+    ' };' +
     ' const overlayCtrlEl=overlayControl.getContainer();' +
     ' if(overlayCtrlEl){' +
     '  overlayCtrlEl.classList.add("leaflet-control-overlay-map");' +
     '  const tBtn=overlayCtrlEl.querySelector(".leaflet-control-layers-toggle");' +
     '  if(tBtn){tBtn.title="登戸区域地図レイヤー";tBtn.innerHTML=\'<span class="ctrl-btn-badge">区域</span>\';}' +
-    '  const form=overlayCtrlEl.querySelector("form");' +
-    '  if(form){' +
-    '   const title=document.createElement("div");' +
-    '   title.style.cssText="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px;";' +
-    '   title.textContent="🗺️ 登戸区域地図";' +
-    '   form.insertBefore(title,form.firstChild);' +
-    '  }' +
+    '  addLyrHead(overlayControl,overlayCtrlEl,"🗺️ 登戸区域地図","var(--accent)");' +
     ' }' +
     ' const baseCtrlEl=baseControl.getContainer();' +
     ' if(baseCtrlEl){' +
     '  baseCtrlEl.classList.add("leaflet-control-base-map");' +
     '  const tBtn=baseCtrlEl.querySelector(".leaflet-control-layers-toggle");' +
     '  if(tBtn){tBtn.title="衛星写真・背景地図レイヤー";tBtn.innerHTML=\'<span class="ctrl-btn-badge">写真</span>\';}' +
-    '  const form=baseCtrlEl.querySelector("form");' +
-    '  if(form){' +
-    '   const title=document.createElement("div");' +
-    '   title.style.cssText="font-size:12px;font-weight:800;color:#1e8e3e;margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px;";' +
-    '   title.textContent="🛰️ 背景地図・衛星写真";' +
-    '   form.insertBefore(title,form.firstChild);' +
-    '  }' +
+    '  addLyrHead(baseControl,baseCtrlEl,"🛰️ 背景地図・衛星写真","#1e8e3e");' +
     ' }' +
     ' OVERLAY_DEFS.forEach(d=>{if(activeOverlays.has(d.id))overlayLayers[d.id].layer.addTo(map);});' +
     ' const obar=document.getElementById("overlayBar");' +
@@ -1463,11 +1469,18 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '    }).runMasterUpdate();' +
     '  };' +
     '}' +
+    'const btnPortal=document.getElementById("btnPortal");' +
+    'if(btnPortal){' +
+    '  btnPortal.addEventListener("click",()=>{try{saveState();}catch(e){}});' +
+    '}' +
     'const btnVersion=document.getElementById("btnVersion");' +
     'if(btnVersion){' +
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.14.014: 「区域」「写真」レイヤー選択パネルに「完了」ボタンを追加（ピン表示と同じ操作で閉じられます）。\\n" +' +
+    '      "・v1.11.14.013: 「写真」「区域」レイヤーのパネルが「現在地」ボタンの下に隠れる問題を修正（最前面に表示）。\\n" +' +
+    '      "・v1.11.14.012: 区域サイトを同じタブで開くよう変更（ブラウザの戻るボタンで元の画面・検索条件・地図位置のまま復帰）。\\n" +' +
     '      "・v1.11.14.011: 区域サイトを別タブで確実に開くよう修正（アプリの画面は裏でそのまま維持され再起動なしで復帰可能）。\\n" +' +
     '      "・v1.11.14.010: 区域サイトをアプリ内全画面ビューで開き、ブラウザの戻るボタンで再起動せずに即座に復帰できるよう改善。\\n" +' +
     '      "・v1.11.14.009: 検索窓重複解消、検索窓2/3化＋区域サイトリンク横配置、ピン表示複数選択ドロップダウン対応。\\n" +' +
