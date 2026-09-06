@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.14.009',
+  VERSION: 'v1.11.14.010',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -814,6 +814,14 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '<div class="daterow"><label>日付</label><input id="editdate" type="text" placeholder="例 6/14 (土)"><div class="todaywrap"><button id="today" type="button">日付選択</button><input id="editdatepick" type="date" aria-label="日付を選択"></div></div>' +
     '<div class="btnrow"><button id="save">保存</button></div>' +
     '</div></div>' +
+    '<div id="portalModal" style="display:none;position:fixed;inset:0;z-index:9000;background:var(--bg);flex-direction:column;">' +
+    '  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--card);border-bottom:1px solid var(--line);box-shadow:0 2px 8px rgba(0,0,0,0.08);flex-shrink:0;">' +
+    '    <button id="btnPortalClose" style="font-size:13px;font-weight:700;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text);cursor:pointer;display:flex;align-items:center;gap:4px;">← 戻る</button>' +
+    '    <span style="font-size:13px;font-weight:800;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">登戸会衆 区域サイト</span>' +
+    '    <a href="https://sites.google.com/view/jwnoborito-portal/" target="_blank" rel="noopener" style="font-size:11px;font-weight:600;color:var(--sub);text-decoration:none;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);white-space:nowrap;">別タブで開く ↗</a>' +
+    '  </div>' +
+    '  <iframe id="portalFrame" src="" style="flex:1;width:100%;border:none;background:#fff;" loading="lazy"></iframe>' +
+    '</div>' +
     '<script>' +
     'function setCookie(n,v,d){const dt=new Date();dt.setTime(dt.getTime()+(d*24*60*60*1000));const ex="expires="+dt.toUTCString();document.cookie=n+"="+encodeURIComponent(v)+";"+ex+";path=/;SameSite=Lax";}' +
     'function getCookie(n){const nm=n+"=";const dec=decodeURIComponent(document.cookie);const ca=dec.split(";");for(let i=0;i<ca.length;i++){let c=ca[i];while(c.charAt(0)==" ")c=c.substring(1);if(c.indexOf(nm)==0)return c.substring(nm.length,c.length);}return "";}' +
@@ -1349,7 +1357,26 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'function periodLabel(ci){const periods=["1〜3月","4〜6月","7〜9月","10〜12月"];const reps=["1回目","2回目","3回目"];' +
     ' return periods[Math.floor(ci/3)]+" "+reps[ci%3];}' +
     'function closeEdit(){document.getElementById("edit").style.display="none";curEdit=null;}' +
+    'function openPortal(e){' +
+    '  if(e)e.preventDefault();' +
+    '  try{history.pushState({m:"portal"},"");}catch(err){}' +
+    '  const frame=document.getElementById("portalFrame");' +
+    '  const modal=document.getElementById("portalModal");' +
+    '  if(frame&&(!frame.src||frame.src==="about:blank"||frame.src===window.location.href)){' +
+    '    frame.src="https://sites.google.com/view/jwnoborito-portal/";' +
+    '  }' +
+    '  if(modal)modal.style.display="flex";' +
+    '}' +
+    'function closePortal(){' +
+    '  const modal=document.getElementById("portalModal");' +
+    '  if(modal)modal.style.display="none";' +
+    '}' +
+    'const btnPortal=document.getElementById("btnPortal");' +
+    'if(btnPortal)btnPortal.onclick=openPortal;' +
+    'const btnPortalClose=document.getElementById("btnPortalClose");' +
+    'if(btnPortalClose)btnPortalClose.onclick=()=>{try{history.back();}catch(err){closePortal();}};' +
     'window.addEventListener("popstate",()=>{' +
+    ' const pm=document.getElementById("portalModal");if(pm&&pm.style.display==="flex"){closePortal();return;}' +
     ' const ed=document.getElementById("edit");if(ed&&ed.style.display==="block"){closeEdit();return;}' +
     ' const rc=document.getElementById("rec");if(rc&&rc.style.display==="block"){closeRec();return;}' +
     '});' +
@@ -1468,6 +1495,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.14.010: 区域サイトをアプリ内全画面ビューで開き、ブラウザの戻るボタンで再起動せずに即座に復帰できるよう改善。\\n" +' +
     '      "・v1.11.14.009: 検索窓重複解消、検索窓2/3化＋区域サイトリンク横配置、ピン表示複数選択ドロップダウン対応。\\n" +' +
     '      "・v1.11.14.008: ピン表示切替とエリア選択をプルダウンに統合し、件数表示箇所へ集約。ヘッダーを1行削減し地図表示領域を拡大。\\n" +' +
     '      "・v1.11.14.007: 区域地図と衛星写真のレイヤーボタンを上下に分離配置。透過率の初期値を50%とし端末記憶に対応。\\n" +' +
