@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問マップ',
-  VERSION: 'v1.11.20',
+  VERSION: 'v1.11.21',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -743,9 +743,11 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.lyr-title{font-size:12px;font-weight:800;white-space:nowrap;}' +
     '.leaflet-top{z-index:1000;}' +
     '.leaflet-top.leaflet-right{z-index:1002;}' +
-    '.leaflet-control-zoom{position:absolute!important;right:12px!important;bottom:76px!important;left:auto!important;top:auto!important;margin:0!important;z-index:1000!important;border:1px solid var(--line)!important;border-radius:12px!important;box-shadow:0 2px 8px rgba(0,0,0,.2)!important;overflow:hidden;}' +
-    '.leaflet-control-zoom a{width:36px!important;height:36px!important;line-height:36px!important;font-size:18px!important;background:var(--card)!important;color:var(--accent)!important;border-bottom-color:var(--line)!important;}' +
-    '.leaflet-control-zoom a:active{background:var(--bg)!important;}' +
+    '#zoomBtns{position:absolute;right:12px;bottom:78px;z-index:1000;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.2);overflow:hidden;}' +
+    '#zoomBtns button{width:38px;height:38px;background:var(--card);border:none;font-size:18px;font-weight:700;color:var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;line-height:1;user-select:none;-webkit-user-select:none;}' +
+    '#zoomBtns button:active{background:var(--bg);}' +
+    '#zoomIn{border-bottom:1px solid var(--line)!important;}' +
+    '.circle-pin{width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);box-sizing:border-box;}' +
     '.leaflet-control-base-map .ctrl-btn-badge{background:#1e8e3e;}' +
     '</style></head><body>' +
     '<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">' +
@@ -803,7 +805,12 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  </div>' +
     '</div></header>' +
     '<main id="list"></main>' +
-    '<div id="mapwrap"><div id="map"></div><button id="locate">現在地</button>' +
+    '<div id="mapwrap"><div id="map"></div>' +
+    '  <div id="zoomBtns">' +
+    '    <button id="zoomIn" type="button" aria-label="拡大">＋</button>' +
+    '    <button id="zoomOut" type="button" aria-label="縮小">−</button>' +
+    '  </div>' +
+    '  <button id="locate">現在地</button>' +
     '  <div id="overlayBar" style="display:none;">' +
     '    <div class="obar-row">' +
     '      <span>透過率:</span>' +
@@ -1014,7 +1021,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' watchId=navigator.geolocation.watchPosition(pos=>{lastPos=[pos.coords.latitude,pos.coords.longitude];const acc=pos.coords.accuracy||30;' +
     '  if(!meMarker){meCircle=L.circle(lastPos,{radius:acc,color:"#34a853",weight:1,fillColor:"#34a853",fillOpacity:0.12,interactive:false}).addTo(map);' +
     '   const meIcon=L.divIcon({className:"",html:"<div class=me-wrap><div class=me-pulse></div><div class=me-emoji>\\ud83d\\udccd</div></div>",iconSize:[36,40],iconAnchor:[18,38]});' +
-    '   meMarker=L.marker(lastPos,{icon:meIcon,zIndexOffset:1000}).addTo(map);' +
+    '   meMarker=L.marker(lastPos,{icon:meIcon,zIndexOffset:10000}).addTo(map);' +
     '  }else{meMarker.setLatLng(lastPos);meCircle.setLatLng(lastPos);meCircle.setRadius(acc);}' +
     '  if(firstFix){firstFix=false;map.setView(lastPos,16);}' +
     ' },err=>{stopLocate();if(err.code===1)alert("位置情報の利用が許可されていません。");else alert("現在地を取得できませんでした（"+err.message+"）");' +
@@ -1038,7 +1045,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  const mapa=document.createElement("a");mapa.className="maplink";mapa.textContent="Map";' +
     '  mapa.href="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(r.name+" "+r.addr);mapa.target="_blank";mapa.rel="noopener";' +
     '  c.appendChild(info);c.appendChild(mapa);list.appendChild(c);});}' +
-    'function initMap(){if(map)return;map=L.map("map");' +
+    'function initMap(){if(map)return;map=L.map("map",{zoomControl:false});' +
+    ' const zi=document.getElementById("zoomIn");if(zi)zi.onclick=()=>{if(map)map.zoomIn();};' +
+    ' const zo=document.getElementById("zoomOut");if(zo)zo.onclick=()=>{if(map)map.zoomOut();};' +
     ' const ga="<a href=\\"https://maps.gsi.go.jp/development/ichiran.html\\" target=\\"_blank\\" rel=\\"noopener\\">国土地理院</a>";' +
     ' const oa="&copy; <a href=\\"https://www.openstreetmap.org/copyright\\" target=\\"_blank\\" rel=\\"noopener\\">OpenStreetMap</a>";' +
     ' const baseMaps={' +
@@ -1301,13 +1310,27 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'function renderMap(hits){if(!map)return;layer.clearLayers();if(hidePins)return;const pts=[];' +
     ' const groups={};' +
     ' hits.forEach(r=>{if(r.lat===null||r.lng===null)return;const key=r.lat+","+r.lng;if(!groups[key])groups[key]=[];groups[key].push(r);});' +
-    ' Object.keys(groups).forEach(key=>{const items=groups[key];const first=items[0];pts.push([first.lat,first.lng]);' +
-    '  const isMulti=items.length>1;let col=COLORS[first.type]||DEFC;' +
-    '  if(isMulti){const types=new Set(items.map(x=>x.type));if(types.size>1){col=COLORS["混在"]||"#f9ab00";}}' +
+    ' const groupList=Object.keys(groups).map(key=>{' +
+    '  const items=groups[key];const first=items[0];' +
+    '  const isMulti=items.length>1;let col=COLORS[first.type]||DEFC;let isMixed=false;' +
+    '  if(isMulti){const types=new Set(items.map(x=>x.type));if(types.size>1){col=COLORS["混在"]||"#f9ab00";isMixed=true;}}' +
     '  const isRefused=items.every(x=>!!x.state);' +
-    '  const mk=isRefused' +
-    '   ?L.marker([first.lat,first.lng],{icon:L.divIcon({className:"",html:"<div class=refuse-pin>×</div>",iconSize:[20,20],iconAnchor:[10,10]})})' +
-    '   :L.circleMarker([first.lat,first.lng],{radius:9,color:"#fff",weight:2,fillColor:col,fillOpacity:0.95});' +
+    '  let priority=1;let zOff=100;' +
+    '  if(!isRefused){' +
+    '   if(isMixed||col===(COLORS["混在"]||"#f9ab00")){priority=3;zOff=300;}' +
+    '   else if(first.type==="単身"||col===(COLORS["単身"]||"#1a73e8")){priority=4;zOff=400;}' +
+    '   else if(first.type==="世帯"||col===(COLORS["世帯"]||"#d93025")){priority=2;zOff=200;}' +
+    '   else{priority=1;zOff=100;}' +
+    '  }' +
+    '  return {items:items,first:first,isMulti:isMulti,col:col,isRefused:isRefused,priority:priority,zOff:zOff};' +
+    ' });' +
+    ' groupList.sort((a,b)=>a.priority-b.priority);' +
+    ' groupList.forEach(g=>{' +
+    '  const first=g.first;const items=g.items;pts.push([first.lat,first.lng]);' +
+    '  const isMulti=g.isMulti;const col=g.col;' +
+    '  const mk=g.isRefused' +
+    '   ?L.marker([first.lat,first.lng],{icon:L.divIcon({className:"",html:"<div class=refuse-pin>×</div>",iconSize:[20,20],iconAnchor:[10,10]}),zIndexOffset:g.zOff})' +
+    '   :L.marker([first.lat,first.lng],{icon:L.divIcon({className:"",html:"<div class=circle-pin style=\\"background:"+col+";\\"></div>",iconSize:[18,18],iconAnchor:[9,9]}),zIndexOffset:g.zOff});' +
     '  const dirBase="https://www.google.com/maps/dir/?api=1&destination="+first.lat+","+first.lng+"&travelmode=";' +
     '  const dirBtns="<div class=dirrow>"+' +
     '   "<a class=dirlink href=\\""+dirBase+"walking\\" target=\\"_blank\\" rel=\\"noopener\\">\\ud83d\\udeb6 徒歩</a>"+' +
@@ -1549,7 +1572,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
-    '      "・v1.11.20: 拡大縮小（＋ー）ボタンを右下「現在地」ボタンの真上へ移動、訪問拒否（✕）ピンを落ち着いたグレーに変更、ピン表示ボタンを右端へ配置（右手操作性の向上）。\\n" +' +
+    '      "・v1.11.21: 拡大縮小（＋ー）ボタンを右下現在地ボタン上へ確実に配置。ピンの重ね順を上から青、混在、赤、グレーの順に調整。\\n" +' +
+    '      "・v1.11.20: 拡大縮小（＋ー）ボタンの配置調整、訪問拒否（✕）ピンのグレー化、ピン表示ボタンを右端へ配置。\\n" +' +
     '      "・v1.11.19: 検索窓にワンタップで入力内容を消去できる「クリア（✕）」ボタンを追加。アプリタイトルを「区域訪問マップ」に変更。\\n" +' +
     '      "・v1.11.18: バージョンモーダルを新設し、最新版がある場合のみモーダル内に「最新版に更新」ボタンを表示するよう改善。\\n" +' +
     '      "・v1.11.17: ヘッダーのバージョン表示で最新版の存在を赤く通知する機能を追加。\\n" +' +
