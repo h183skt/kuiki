@@ -9,8 +9,8 @@
 
 // 設定項目
 const WEBAPP = {
-  TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.18',
+  TITLE: '区域訪問マップ',
+  VERSION: 'v1.11.19',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -624,7 +624,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.toggle{display:flex;border:1px solid var(--accent);border-radius:8px;overflow:hidden;}' +
     '.toggle button{font-size:13px;padding:6px 14px;border:0;background:var(--card);color:var(--accent);}' +
     '.toggle button.on{background:var(--accent);color:#fff;}' +
-    '#q{width:100%;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);}' +
+    '#q{width:100%;font-size:16px;padding:10px 32px 10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);box-sizing:border-box;}' +
+    '#q::-webkit-search-cancel-button,#q::-webkit-search-decoration{display:none;-webkit-appearance:none;}' +
+    '.q-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:#dadce0;border:none;color:#5f6368;font-size:11px;font-weight:800;cursor:pointer;display:none;align-items:center;justify-content:center;padding:0;line-height:1;user-select:none;-webkit-user-select:none;}' +
+    '.q-clear:active{background:#bdc1c6;color:#202124;transform:translateY(-50%) scale(0.92);}' +
     '#count{font-size:12px;color:var(--sub);margin:6px 2px 0;}' +
     '#list{flex:1;overflow-y:auto;padding:8px 12px 40px;}' +
     '#mapwrap{flex:1;display:none;position:relative;}' +
@@ -747,7 +750,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">' +
     '  <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 4px 16px rgba(0,0,0,0.08);display:flex;flex-direction:column;align-items:center;">' +
     '    <img src="' + WEBAPP.ICON_URL + '" style="width:72px;height:72px;margin-bottom:16px;">' +
-    '    <h2 style="font-size:18px;margin:0 0 4px;font-weight:700;color:var(--text);">区域訪問記録アプリ</h2>' +
+    '    <h2 style="font-size:18px;margin:0 0 4px;font-weight:700;color:var(--text);">' + WEBAPP.TITLE + '</h2>' +
     '    <div style="font-size:12px;color:var(--sub);margin-bottom:16px;">' + WEBAPP.VERSION + '</div>' +
     '    <div id="login-loading" style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:8px;">' +
     '      <div class="spinner"></div>' +
@@ -777,7 +780,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '<button id="btnUpdate" style="display:none;font-size:11px;color:var(--accent);background:var(--card);border:1px solid var(--accent);border-radius:999px;padding:2px 8px;margin-right:4px;white-space:nowrap;cursor:pointer;">マスター更新</button>' +
     '<div class="toggle"><button id="bList">一覧</button><button id="bMap" class="on">地図</button></div></div>' +
     '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">' +
-    '  <input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off" style="flex:2;min-width:0;margin:0;">' +
+    '  <div style="flex:2;min-width:0;position:relative;display:flex;align-items:center;">' +
+    '    <input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off" style="width:100%;min-width:0;margin:0;">' +
+    '    <button id="qClear" type="button" class="q-clear" title="検索条件をクリア" aria-label="クリア">✕</button>' +
+    '  </div>' +
     '  <a id="btnPortal" href="https://sites.google.com/view/jwnoborito-portal/" target="_top" style="flex:1;max-width:130px;height:36px;font-size:11px;color:var(--accent);text-decoration:none;border:1.5px solid var(--accent);background:var(--card);padding:0 4px;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;box-sizing:border-box;">区域サイト →</a>' +
     '</div>' +
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px;gap:6px;position:relative;">' +
@@ -950,17 +956,37 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  const wrap=document.getElementById("pinDropdownWrap");' +
     '  if(wrap&&!wrap.contains(e.target)&&pinDropdownMenu){pinDropdownMenu.style.display="none";}' +
     '});' +
+    'const qInput=document.getElementById("q");' +
+    'const qClear=document.getElementById("qClear");' +
+    'const syncQClear=()=>{if(qClear&&qInput)qClear.style.display=qInput.value.length>0?"flex":"none";};' +
     'function initApp() {' +
     '  buildPinDropdown();' +
-    '  document.getElementById("q").value=curQ;' +
+    '  if(qInput)qInput.value=curQ;' +
+    '  syncQClear();' +
     '  setMode(mode||initMode);' +
     '}' +
-    'document.getElementById("q").addEventListener("input",e=>{' +
-    '  curQ=e.target.value.trim();' +
-    '  const btn=document.getElementById("btnUpdate");' +
-    '  if(btn){btn.style.display=(curQ==="管理者")?"":"none";}' +
-    '  render();' +
-    '});' +
+    'if(qInput){' +
+    '  qInput.addEventListener("input",e=>{' +
+    '    curQ=e.target.value.trim();' +
+    '    syncQClear();' +
+    '    const btn=document.getElementById("btnUpdate");' +
+    '    if(btn){btn.style.display=(curQ==="管理者")?"":"none";}' +
+    '    render();' +
+    '  });' +
+    '}' +
+    'if(qClear){' +
+    '  qClear.addEventListener("click",()=>{' +
+    '    if(qInput){' +
+    '      qInput.value="";' +
+    '      curQ="";' +
+    '      syncQClear();' +
+    '      const btn=document.getElementById("btnUpdate");' +
+    '      if(btn){btn.style.display="none";}' +
+    '      render();' +
+    '      qInput.focus();' +
+    '    }' +
+    '  });' +
+    '}' +
     'document.getElementById("bList").onclick=()=>setMode("list");' +
     'document.getElementById("bMap").onclick=()=>setMode("map");' +
     'document.getElementById("locate").onclick=locate;' +
@@ -1522,6 +1548,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.19: 検索窓にワンタップで入力内容を消去できる「クリア（✕）」ボタンを追加。アプリタイトルを「区域訪問マップ」に変更。\\n" +' +
     '      "・v1.11.18: バージョンモーダルを新設し、最新版がある場合のみモーダル内に「最新版に更新」ボタンを表示するよう改善。\\n" +' +
     '      "・v1.11.17: ヘッダーのバージョン表示で最新版の存在を赤く通知する機能を追加。\\n" +' +
     '      "・v1.11.16: ピン表示メニューを開いた際に地図の拡大縮小（＋ー）ボタンが手前に被る問題を修正（背面に配置）。\\n" +' +
