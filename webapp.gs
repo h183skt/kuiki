@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.13.6',
+  VERSION: 'v1.11.13.7',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -711,7 +711,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '<button id="btnUpdate" style="display:none;font-size:11px;color:var(--accent);background:var(--card);border:1px solid var(--accent);border-radius:999px;padding:2px 8px;margin-right:4px;white-space:nowrap;cursor:pointer;">マスター更新</button>' +
     '<div class="toggle"><button id="bList">一覧</button><button id="bMap" class="on">地図</button></div></div>' +
     '<input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off">' +
-    '<div id="areas"></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:6px;"><div id="count" style="margin:0;white-space:nowrap;"></div><div style="display:flex;align-items:center;gap:6px;min-width:0;"><a id="btnPortal" href="https://sites.google.com/view/jwnoborito-portal/" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent);text-decoration:none;border:1px solid var(--accent);background:var(--card);padding:2px 8px;border-radius:12px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;font-weight:600;flex-shrink:0;">登戸会衆 区域サイト ↗</a><span id="user-email" style="font-size:11px;color:var(--sub);padding-right:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span></div></div></header>' +
+    '<div id="areas"></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:6px;"><div id="count" style="margin:0;white-space:nowrap;"></div><div style="display:flex;align-items:center;gap:6px;min-width:0;"><a id="btnPortal" href="https://sites.google.com/view/jwnoborito-portal/" target="_top" style="font-size:11px;color:var(--accent);text-decoration:none;border:1px solid var(--accent);background:var(--card);padding:2px 8px;border-radius:12px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;font-weight:600;flex-shrink:0;">登戸会衆 区域サイト ↗</a><span id="user-email" style="font-size:11px;color:var(--sub);padding-right:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span></div></div></header>' +
     '<main id="list"></main>' +
     '<div id="mapwrap"><div id="map"></div><button id="locate">現在地</button></div>' +
     '<div id="rec"><div id="recinner"><div id="rechead"><div style="flex:1;min-width:0;"><h2 id="rectitle" style="font-size:18px;font-weight:800;color:var(--text);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">訪問記録</h2><div id="rec-datetime" style="font-size:18px;color:var(--accent);margin-top:4px;font-weight:800;letter-spacing:-0.5px;"></div></div><button id="recclose">閉じる</button></div><div id="recbody"></div><div id="rec-dir" style="padding:10px 12px;display:none;background:var(--card);border-top:1px solid var(--line);"></div></div></div>' +
@@ -886,7 +886,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  });});' +
     '  mk.addTo(layer);});' +
     ' if(pts.length>0&&watchId===null&&!savedView)map.fitBounds(pts,{padding:[30,30],maxZoom:17});}' +
-    'function openRec(r){curSheetIndex=0;const m=document.getElementById("rec");m.style.display="block";' +
+    'function openRec(r){try{history.pushState({m:"rec"},"");}catch(e){}' +
+    ' curSheetIndex=0;const m=document.getElementById("rec");m.style.display="block";' +
     ' document.getElementById("rectitle").textContent=r.name;' +
     ' const dirEl=document.getElementById("rec-dir");if(dirEl)dirEl.style.display="none";' +
     ' if(recTimer)clearInterval(recTimer);' +
@@ -947,7 +948,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '   dirEl.style.display="none";' +
     '  }' +
     ' }}' +
-    'function openEdit(ri,ci){const room=curRec.data.rooms[ri];const cell=room.cells[ci];' +
+    'function openEdit(ri,ci){try{history.pushState({m:"edit"},"");}catch(e){}' +
+    ' const room=curRec.data.rooms[ri];const cell=room.cells[ci];' +
     ' curEdit={ri:ri,ci:ci,chosen:cell.result||"",clearMode:false};' +
     ' document.getElementById("edittitle").textContent=room.room+"号室　"+periodLabel(ci);' +
     ' const rr=document.getElementById("resrow");rr.innerHTML="";' +
@@ -962,6 +964,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'function periodLabel(ci){const periods=["1〜3月","4〜6月","7〜9月","10〜12月"];const reps=["1回目","2回目","3回目"];' +
     ' return periods[Math.floor(ci/3)]+" "+reps[ci%3];}' +
     'function closeEdit(){document.getElementById("edit").style.display="none";curEdit=null;}' +
+    'window.addEventListener("popstate",()=>{' +
+    ' const ed=document.getElementById("edit");if(ed&&ed.style.display==="block"){closeEdit();return;}' +
+    ' const rc=document.getElementById("rec");if(rc&&rc.style.display==="block"){closeRec();return;}' +
+    '});' +
     'function doSave(){if(!curEdit)return;const room=curRec.data.rooms[curEdit.ri];const cell=room.cells[curEdit.ci];' +
     ' const newResult=curEdit.clearMode?"":(curEdit.chosen||"");const newDate=curEdit.clearMode?"":document.getElementById("editdate").value.trim();' +
     ' if(curEdit.clearMode&&!cell.result&&!cell.date){closeEdit();return;}' +
