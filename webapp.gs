@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.13.7',
+  VERSION: 'v1.11.14',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -1083,6 +1083,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.14: 背景地図切替（国土地理院の最新・年代別空中写真など13種）とピン非表示ボタン、区域サイトリンクを追加。\\n" +' +
     '      "・v1.11.13: バージョン番号の再カウントアップと更新通知・デプロイ確認のためのテストリリース（機能変更なし）。\\n" +' +
     '      "・v1.11.12: バージョン番号のカウントアップとデプロイ確認のためのテストリリース（機能変更なし）。\\n" +' +
     '      "・v1.11.11: 保護シート判定の誤検知を修正し、除外範囲などで実際は編集可能な記録シートも正しく保存できるように変更。\\n" +' +
