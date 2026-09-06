@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問マップ',
-  VERSION: 'v1.11.21',
+  VERSION: 'v1.11.22',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -721,7 +721,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.leaflet-control-layers-separator{border-top:1px solid var(--line)!important;margin:8px 0!important;}' +
     '#overlayBar{position:absolute;top:10px;left:10px;z-index:1000;background:rgba(255,255,255,0.96);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:12px;padding:6px 12px;box-shadow:0 3px 12px rgba(0,0,0,.15);display:flex;align-items:center;gap:10px;}' +
     '.obar-row{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;}' +
-    '#overlayOpacity{width:90px;height:24px;accent-color:var(--accent);cursor:pointer;}' +
+    '#overlayOpacity{width:70px;height:24px;accent-color:var(--accent);cursor:pointer;}' +
+    '.op-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--accent);font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1;user-select:none;box-shadow:0 1px 3px rgba(0,0,0,.08);}' +
+    '.op-btn:active{background:var(--bg);transform:scale(0.95);}' +
     '#btnAdjustMode{font-size:13px;padding:6px 12px;min-height:36px;border:1.5px solid var(--accent);border-radius:8px;background:var(--card);color:var(--accent);cursor:pointer;white-space:nowrap;font-weight:700;}' +
     '#btnAdjustMode.on{background:var(--accent);color:#fff;border-color:var(--accent);}' +
     '#adjustModal{position:fixed;top:0;left:0;right:0;z-index:2005;background:rgba(255,255,255,0.96);backdrop-filter:blur(10px);border-bottom:2px solid var(--accent);box-shadow:0 4px 16px rgba(0,0,0,.2);padding:6px 10px 8px;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:6px;}' +
@@ -814,9 +816,11 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  <div id="overlayBar" style="display:none;">' +
     '    <div class="obar-row">' +
     '      <span>透過率:</span>' +
+    '      <button id="btnOpMinus" class="op-btn" type="button" aria-label="下げる">−</button>' +
     '      <input id="overlayOpacity" type="range" min="0" max="100" value="50">' +
-    '      <span id="opacityTxt">50%</span>' +
-    '      <button id="btnAdjustMode">位置調整 ⚙</button>' +
+    '      <button id="btnOpPlus" class="op-btn" type="button" aria-label="上げる">＋</button>' +
+    '      <span id="opacityTxt" style="min-width:32px;text-align:right;">50%</span>' +
+    '      <button id="btnAdjustMode" style="display:none;">位置調整 ⚙</button>' +
     '    </div>' +
     '  </div>' +
     '</div>' +
@@ -1168,6 +1172,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' syncOpacity(Math.round(curOpacity*100));' +
     ' if(opSlider)opSlider.oninput=()=>syncOpacity(parseInt(opSlider.value,10));' +
     ' if(mOpSlider)mOpSlider.oninput=()=>syncOpacity(parseInt(mOpSlider.value,10));' +
+    ' const btnOpMinus=document.getElementById("btnOpMinus");' +
+    ' const btnOpPlus=document.getElementById("btnOpPlus");' +
+    ' if(btnOpMinus)btnOpMinus.onclick=()=>syncOpacity(Math.max(0,Math.round(curOpacity*100)-5));' +
+    ' if(btnOpPlus)btnOpPlus.onclick=()=>syncOpacity(Math.min(100,Math.round(curOpacity*100)+5));' +
     ' function clearAdjustMarkers(){adjustMarkers.forEach(m=>map.removeLayer(m));adjustMarkers=[];}' +
     ' function refreshAdjustMarkers(){' +
     '  clearAdjustMarkers();' +
@@ -1572,6 +1580,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.22: 区域地図表示時の「位置調整」ボタンを非表示にし、代わりに透過率を微調整できる＋－ボタンを追加。\\n" +' +
     '      "・v1.11.21: 拡大縮小（＋ー）ボタンを右下現在地ボタン上へ確実に配置。ピンの重ね順を上から青、混在、赤、グレーの順に調整。\\n" +' +
     '      "・v1.11.20: 拡大縮小（＋ー）ボタンの配置調整、訪問拒否（✕）ピンのグレー化、ピン表示ボタンを右端へ配置。\\n" +' +
     '      "・v1.11.19: 検索窓にワンタップで入力内容を消去できる「クリア（✕）」ボタンを追加。アプリタイトルを「区域訪問マップ」に変更。\\n" +' +
