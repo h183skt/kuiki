@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.14.007',
+  VERSION: 'v1.11.14.008',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -611,9 +611,6 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.toggle button{font-size:13px;padding:6px 14px;border:0;background:var(--card);color:var(--accent);}' +
     '.toggle button.on{background:var(--accent);color:#fff;}' +
     '#q{width:100%;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);}' +
-    '#areas{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;-webkit-overflow-scrolling:touch;}' +
-    '#areas button{flex:0 0 auto;font-size:13px;padding:6px 12px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:var(--sub);}' +
-    '#areas button.on{background:var(--accent);border-color:var(--accent);color:#fff;}' +
     '#count{font-size:12px;color:var(--sub);margin:6px 2px 0;}' +
     '#list{flex:1;overflow-y:auto;padding:8px 12px 40px;}' +
     '#mapwrap{flex:1;display:none;position:relative;}' +
@@ -690,8 +687,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.leaflet-control-layers-expanded{padding:10px 14px!important;line-height:1.7!important;max-height:75vh;overflow-y:auto;background:var(--card)!important;color:var(--text)!important;}' +
     '.leaflet-control-layers-base label{margin:3px 0!important;cursor:pointer;display:flex;align-items:center;gap:6px;}' +
     '.leaflet-control-layers-base input{margin:0!important;cursor:pointer;}' +
-    '#bTogglePins{font-weight:600;display:inline-flex;align-items:center;gap:4px;}' +
-    '#bTogglePins.pins-hidden{background:#fce8e6!important;border-color:#d93025!important;color:#d93025!important;font-weight:700!important;}' +
+    '#selAreaPins{font-size:12px;font-weight:700;padding:2px 6px;height:30px;border:1.5px solid var(--accent);border-radius:8px;background:var(--card);color:var(--accent);cursor:pointer;max-width:160px;outline:none;text-overflow:ellipsis;white-space:nowrap;}' +
+    '#selAreaPins.pins-hidden{border-color:#d93025;color:#d93025;background:#fce8e6;}' +
     '#btnPortal:active{background:var(--accent)!important;color:#fff!important;}' +
     '.leaflet-control-layers-overlays label{margin:4px 0!important;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600;}' +
     '.leaflet-control-layers-overlays input{margin:0!important;cursor:pointer;}' +
@@ -735,7 +732,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '<button id="btnUpdate" style="display:none;font-size:11px;color:var(--accent);background:var(--card);border:1px solid var(--accent);border-radius:999px;padding:2px 8px;margin-right:4px;white-space:nowrap;cursor:pointer;">マスター更新</button>' +
     '<div class="toggle"><button id="bList">一覧</button><button id="bMap" class="on">地図</button></div></div>' +
     '<input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off">' +
-    '<div id="areas"></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:6px;"><div id="count" style="margin:0;white-space:nowrap;"></div><div style="display:flex;align-items:center;gap:6px;min-width:0;"><a id="btnPortal" href="https://sites.google.com/view/jwnoborito-portal/" target="_top" style="font-size:11px;color:var(--accent);text-decoration:none;border:1px solid var(--accent);background:var(--card);padding:2px 8px;border-radius:12px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;font-weight:600;flex-shrink:0;">登戸会衆 区域サイト ↗</a><span id="user-email" style="font-size:11px;color:var(--sub);padding-right:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span></div></div></header>' +
+    '<input id="q" type="search" placeholder="マンション名・住所で検索" autocomplete="off">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;gap:6px;"><div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;"><select id="selAreaPins" aria-label="ピン・エリア表示切替"></select><div id="count" style="margin:0;font-size:11px;color:var(--sub);white-space:nowrap;"></div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0;"><a id="btnPortal" href="https://sites.google.com/view/jwnoborito-portal/" target="_top" style="font-size:11px;color:var(--accent);text-decoration:none;border:1px solid var(--accent);background:var(--card);padding:2px 8px;border-radius:12px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;font-weight:600;flex-shrink:0;">登戸会衆 区域サイト ↗</a><span id="user-email" style="font-size:11px;color:var(--sub);padding-right:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span></div></div></header>' +
     '<main id="list"></main>' +
     '<div id="mapwrap"><div id="map"></div><button id="locate">現在地</button>' +
     '  <div id="overlayBar" style="display:none;">' +
@@ -819,17 +817,38 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'function saveState(){try{sessionStorage.setItem("st",JSON.stringify({a:curArea,q:curQ,m:mode,v:savedView,hp:hidePins}));}catch(e){}}' +
     'let initMode="map";' +
     'try{const st=JSON.parse(sessionStorage.getItem("st")||"{}");curArea=st.a||"";curQ=st.q||"";if(st.v)savedView=st.v;if(st.hp!==undefined)hidePins=!!st.hp;}catch(e){}' +
-    'const areaBox=document.getElementById("areas");' +
-    'function togglePins(){hidePins=!hidePins;updatePinsBtn();if(mode==="map")render();saveState();}' +
-    'function updatePinsBtn(){const b=document.getElementById("bTogglePins");if(!b)return;b.textContent=hidePins?"ピン表示":"ピン非表示";b.classList.toggle("pins-hidden",hidePins);b.style.display=(mode==="map")?"":"none";}' +
+    'const selAreaPins=document.getElementById("selAreaPins");' +
+    'function updateAreaSelect(){' +
+    '  if(!selAreaPins)return;' +
+    '  selAreaPins.innerHTML="";' +
+    '  const optAll=document.createElement("option");optAll.value="";optAll.textContent="📍 すべて (全ピン)";selAreaPins.appendChild(optAll);' +
+    '  const optNone=document.createElement("option");optNone.value="__none__";optNone.textContent="🚫 ピン非表示";selAreaPins.appendChild(optNone);' +
+    '  const grp=document.createElement("optgroup");grp.label="エリア別ピン表示";' +
+    '  const areas=[...new Set(DATA.map(r=>r.area))].filter(Boolean);' +
+    '  areas.forEach(a=>{' +
+    '    const opt=document.createElement("option");opt.value=a;' +
+    '    const cnt=DATA.filter(r=>r.area===a).length;' +
+    '    opt.textContent=a.replace(/エリア$/,"") + " (" + cnt + "件)";' +
+    '    grp.appendChild(opt);' +
+    '  });' +
+    '  selAreaPins.appendChild(grp);' +
+    '  if(hidePins){selAreaPins.value="__none__";}' +
+    '  else if(curArea){selAreaPins.value=curArea;}' +
+    '  else{selAreaPins.value="";}' +
+    '  selAreaPins.classList.toggle("pins-hidden",hidePins);' +
+    '}' +
+    'if(selAreaPins){' +
+    '  selAreaPins.onchange=()=>{' +
+    '    const v=selAreaPins.value;' +
+    '    if(v==="__none__"){hidePins=true;}' +
+    '    else{hidePins=false;curArea=v;}' +
+    '    selAreaPins.classList.toggle("pins-hidden",hidePins);' +
+    '    render();' +
+    '    saveState();' +
+    '  };' +
+    '}' +
     'function initApp() {' +
-    '  areaBox.innerHTML="";' +
-    '  const areas=[...new Set(DATA.map(r=>r.area))];' +
-    '  function chip(label,val){const b=document.createElement("button");b.textContent=label;b.dataset.val=val;b.onclick=()=>{curArea=val;render();};areaBox.appendChild(b);}' +
-    '  chip("すべて","");' +
-    '  const pinBtn=document.createElement("button");pinBtn.id="bTogglePins";pinBtn.onclick=togglePins;areaBox.appendChild(pinBtn);' +
-    '  updatePinsBtn();' +
-    '  areas.forEach(a=>chip(a.replace(/エリア$/,""),a));' +
+    '  updateAreaSelect();' +
     '  document.getElementById("q").value=curQ;' +
     '  setMode(mode||initMode);' +
     '}' +
@@ -858,7 +877,6 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' document.getElementById("bMap").classList.toggle("on",m==="map");' +
     ' document.getElementById("list").style.display=(m==="list")?"":"none";' +
     ' document.getElementById("mapwrap").style.display=(m==="map")?"flex":"none";' +
-    ' updatePinsBtn();' +
     ' if(m==="map"){initMap();setTimeout(()=>map.invalidateSize(),50);}render();}' +
     'function locate(){if(!navigator.geolocation){alert("この端末では位置情報を利用できません。");return;}' +
     ' if(watchId!==null){if(lastPos)map.setView(lastPos,Math.max(map.getZoom(),16));return;}' +
@@ -873,12 +891,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' },{enableHighAccuracy:true,maximumAge:5000,timeout:15000});}' +
     'function stopLocate(){if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}document.getElementById("locate").classList.remove("on");}' +
     'function hits_(){const q=curQ.toLowerCase();return DATA.filter(r=>(!curArea||r.area===curArea)&&(!q||r.name.toLowerCase().includes(q)||r.addr.toLowerCase().includes(q)));}' +
-    'function render(){[...areaBox.children].forEach(b=>{if(b.dataset.val!==undefined)b.classList.toggle("on",b.dataset.val===curArea);});' +
-    ' updatePinsBtn();' +
+    'function render(){' +
     ' const hits=hits_();' +
-    ' const pcount=hits.filter(r=>r.lat!==null).length;' +
-    ' const pinfo=hidePins?"（ピン非表示中）":"（ピン "+pcount+"）";' +
-    ' document.getElementById("count").textContent=hits.length+" 件"+(mode==="map"?pinfo:"");' +
+    ' document.getElementById("count").textContent=hits.length+"件";' +
     ' if(mode==="list")renderList(hits);else renderMap(hits);saveState();}' +
     'function renderList(hits){const list=document.getElementById("list");list.innerHTML="";' +
     ' if(hits.length===0){list.innerHTML="<div class=empty>該当なし</div>";return;}let lastArea=null;' +
@@ -1386,6 +1401,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.14.008: ピン表示切替とエリア選択をプルダウンに統合し、件数表示箇所へ集約。ヘッダーを1行削減し地図表示領域を拡大。\\n" +' +
     '      "・v1.11.14.007: 区域地図と衛星写真のレイヤーボタンを上下に分離配置。透過率の初期値を50%とし端末記憶に対応。\\n" +' +
     '      "・v1.11.14.006: 登戸区域地図8画像の初期座標（初期位置・拡大縮小幅・縦横比）を微調整済みの確定値に更新。\\n" +' +
     '      "・v1.11.14.005: 矢印キー移動量を半減（約5m微調整化）、拡大縮小も1%刻み化。座標コピーに拡大縮小幅・中心・移動量等の全数値を含めるよう拡張。\\n" +' +
