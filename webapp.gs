@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問マップ',
-  VERSION: 'v1.11.19',
+  VERSION: 'v1.11.20',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -661,7 +661,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.me-pulse{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:rgba(52,168,83,.9);animation:mepulse 1.6s ease-out infinite;}' +
     '@keyframes mepulse{0%{box-shadow:0 0 0 0 rgba(52,168,83,.6);}100%{box-shadow:0 0 0 22px rgba(52,168,83,0);}}' +
     '.me-emoji{position:absolute;left:50%;bottom:0;transform:translateX(-50%);font-size:34px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));}' +
-    '.refuse-pin{width:20px;height:20px;border-radius:50%;background:#202124;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);color:#fff;font-weight:800;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;}' +
+    '.refuse-pin{width:20px;height:20px;border-radius:50%;background:#70757a;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);color:#fff;font-weight:800;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;}' +
     '.empty{text-align:center;color:var(--sub);padding:40px 0;}' +
     '#rec{position:fixed;inset:0;background:var(--card);z-index:2000;display:none;}' +
     '#recinner{position:absolute;inset:0;background:var(--card);padding:12px 0 0 0;display:flex;flex-direction:column;max-height:100vh;}' +
@@ -706,7 +706,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.leaflet-control-layers-base input{margin:0!important;cursor:pointer;}' +
     '.pin-dropdown-btn{font-size:12px;font-weight:700;padding:0 8px;height:30px;border:1.5px solid var(--accent);border-radius:8px;background:var(--card);color:var(--accent);cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.06);}' +
     '.pin-dropdown-btn.pins-hidden{border-color:#d93025;color:#d93025;background:#fce8e6;}' +
-    '.pin-dropdown-menu{position:absolute;top:34px;left:0;z-index:2100;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.25);padding:8px;min-width:210px;max-width:260px;display:flex;flex-direction:column;gap:6px;}' +
+    '.pin-dropdown-menu{position:absolute;top:34px;right:0;left:auto;z-index:2100;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.25);padding:8px;min-width:210px;max-width:260px;display:flex;flex-direction:column;gap:6px;}' +
     '.pdm-head{display:flex;align-items:center;justify-content:space-between;gap:4px;padding-bottom:6px;border-bottom:1px solid var(--line);}' +
     '.pdm-btn-sm{font-size:11px;font-weight:700;padding:4px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--text);cursor:pointer;white-space:nowrap;}' +
     '.pdm-btn-sm.pdm-primary{background:var(--accent);color:#fff;border-color:var(--accent);}' +
@@ -743,8 +743,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.lyr-title{font-size:12px;font-weight:800;white-space:nowrap;}' +
     '.leaflet-top{z-index:1000;}' +
     '.leaflet-top.leaflet-right{z-index:1002;}' +
-    '.leaflet-control-layers-expanded{z-index:1003;}' +
-    '.leaflet-control-zoom{z-index:990;}' +
+    '.leaflet-control-zoom{position:absolute!important;right:12px!important;bottom:76px!important;left:auto!important;top:auto!important;margin:0!important;z-index:1000!important;border:1px solid var(--line)!important;border-radius:12px!important;box-shadow:0 2px 8px rgba(0,0,0,.2)!important;overflow:hidden;}' +
+    '.leaflet-control-zoom a{width:36px!important;height:36px!important;line-height:36px!important;font-size:18px!important;background:var(--card)!important;color:var(--accent)!important;border-bottom-color:var(--line)!important;}' +
+    '.leaflet-control-zoom a:active{background:var(--bg)!important;}' +
     '.leaflet-control-base-map .ctrl-btn-badge{background:#1e8e3e;}' +
     '</style></head><body>' +
     '<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">' +
@@ -786,10 +787,11 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  </div>' +
     '  <a id="btnPortal" href="https://sites.google.com/view/jwnoborito-portal/" target="_top" style="flex:1;max-width:130px;height:36px;font-size:11px;color:var(--accent);text-decoration:none;border:1.5px solid var(--accent);background:var(--card);padding:0 4px;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;box-sizing:border-box;">区域サイト →</a>' +
     '</div>' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px;gap:6px;position:relative;">' +
-    '  <div id="pinDropdownWrap" style="display:flex;align-items:center;gap:8px;min-width:0;position:relative;">' +
-    '    <button id="btnPinDropdown" type="button" class="pin-dropdown-btn">📍 ピン表示: すべて ▼</button>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px;gap:8px;position:relative;">' +
+    '  <span id="user-email" style="font-size:11px;color:var(--sub);padding-left:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;"></span>' +
+    '  <div id="pinDropdownWrap" style="display:flex;align-items:center;gap:6px;flex-shrink:0;position:relative;">' +
     '    <div id="count" style="margin:0;font-size:12px;font-weight:700;color:var(--sub);white-space:nowrap;"></div>' +
+    '    <button id="btnPinDropdown" type="button" class="pin-dropdown-btn">📍 ピン表示: すべて ▼</button>' +
     '    <div id="pinDropdownMenu" class="pin-dropdown-menu" style="display:none;">' +
     '      <div class="pdm-head">' +
     '        <button id="pdmAll" type="button" class="pdm-btn-sm">すべて表示</button>' +
@@ -799,7 +801,6 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '      <div id="pdmList" class="pdm-list"></div>' +
     '    </div>' +
     '  </div>' +
-    '  <span id="user-email" style="font-size:11px;color:var(--sub);padding-right:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>' +
     '</div></header>' +
     '<main id="list"></main>' +
     '<div id="mapwrap"><div id="map"></div><button id="locate">現在地</button>' +
@@ -1548,6 +1549,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.20: 拡大縮小（＋ー）ボタンを右下「現在地」ボタンの真上へ移動、訪問拒否（✕）ピンを落ち着いたグレーに変更、ピン表示ボタンを右端へ配置（右手操作性の向上）。\\n" +' +
     '      "・v1.11.19: 検索窓にワンタップで入力内容を消去できる「クリア（✕）」ボタンを追加。アプリタイトルを「区域訪問マップ」に変更。\\n" +' +
     '      "・v1.11.18: バージョンモーダルを新設し、最新版がある場合のみモーダル内に「最新版に更新」ボタンを表示するよう改善。\\n" +' +
     '      "・v1.11.17: ヘッダーのバージョン表示で最新版の存在を赤く通知する機能を追加。\\n" +' +
