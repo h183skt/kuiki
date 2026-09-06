@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問記録マップ',
-  VERSION: 'v1.11.14.001',
+  VERSION: 'v1.11.14.002',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -696,16 +696,23 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.leaflet-control-layers-overlays label{margin:4px 0!important;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600;}' +
     '.leaflet-control-layers-overlays input{margin:0!important;cursor:pointer;}' +
     '.leaflet-control-layers-separator{border-top:1px solid var(--line)!important;margin:8px 0!important;}' +
-    '#overlayBar{position:absolute;left:10px;bottom:24px;z-index:1000;background:rgba(255,255,255,0.95);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:12px;padding:8px 12px;box-shadow:0 3px 12px rgba(0,0,0,.15);max-width:calc(100vw - 110px);}' +
-    '.obar-row{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;}' +
-    '#overlayOpacity{width:80px;accent-color:var(--accent);cursor:pointer;}' +
-    '#btnAdjustMode{font-size:11px;padding:3px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);cursor:pointer;white-space:nowrap;font-weight:600;}' +
+    '#overlayBar{position:absolute;top:10px;left:10px;z-index:1000;background:rgba(255,255,255,0.96);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:12px;padding:6px 12px;box-shadow:0 3px 12px rgba(0,0,0,.15);display:flex;align-items:center;gap:10px;}' +
+    '.obar-row{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;}' +
+    '#overlayOpacity{width:90px;height:24px;accent-color:var(--accent);cursor:pointer;}' +
+    '#btnAdjustMode{font-size:13px;padding:6px 12px;min-height:36px;border:1.5px solid var(--accent);border-radius:8px;background:var(--card);color:var(--accent);cursor:pointer;white-space:nowrap;font-weight:700;}' +
     '#btnAdjustMode.on{background:var(--accent);color:#fff;border-color:var(--accent);}' +
-    '#adjustBox{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:11.5px;display:flex;flex-direction:column;gap:6px;}' +
-    '.adj-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}' +
-    '.adj-btn{padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--text);cursor:pointer;font-size:12px;font-weight:700;line-height:1;}' +
-    '.adj-btn:active{background:var(--bg);}' +
-    '.corner-pin{width:18px;height:18px;background:var(--accent);border:2px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3);cursor:move;touch-action:none;}' +
+    '#adjustModal{position:fixed;top:0;left:0;right:0;z-index:2005;background:rgba(255,255,255,0.98);backdrop-filter:blur(10px);border-bottom:2px solid var(--accent);box-shadow:0 4px 20px rgba(0,0,0,.25);padding:10px 12px 14px;max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:10px;}' +
+    '.adj-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}' +
+    '.adj-title{font-size:15px;font-weight:800;color:var(--accent);white-space:nowrap;}' +
+    '.adj-body{display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-around;}' +
+    '.adj-group{display:flex;flex-direction:column;align-items:center;gap:4px;}' +
+    '.adj-lbl{font-size:12px;font-weight:700;color:var(--sub);}' +
+    '.adj-dpad{display:grid;grid-template-columns:repeat(3, 50px);grid-template-rows:repeat(2, 46px);gap:5px;}' +
+    '.adj-size-grid{display:grid;grid-template-columns:repeat(2, 1fr);gap:6px;min-width:160px;}' +
+    '.adj-large-btn{height:46px;min-width:48px;padding:8px 12px;font-size:15px;font-weight:700;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;box-shadow:0 2px 5px rgba(0,0,0,.08);}' +
+    '.adj-large-btn:active{background:var(--line);transform:scale(0.96);}' +
+    '.adj-arrow{font-size:22px;font-weight:900;background:#f0f4f9;border-color:#d2e3fc;color:var(--accent);}' +
+    '.corner-pin{width:24px;height:24px;background:var(--accent);border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:move;touch-action:none;}' +
     '</style></head><body>' +
     '<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">' +
     '  <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 4px 16px rgba(0,0,0,0.08);display:flex;flex-direction:column;align-items:center;">' +
@@ -732,34 +739,43 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '      <span>透過率:</span>' +
     '      <input id="overlayOpacity" type="range" min="0" max="100" value="65">' +
     '      <span id="opacityTxt">65%</span>' +
-    '      <button id="btnAdjustMode">位置調整</button>' +
+    '      <button id="btnAdjustMode">位置調整 ⚙</button>' +
     '    </div>' +
-    '    <div id="adjustBox" style="display:none;">' +
-    '      <div class="adj-row">' +
-    '        <span>対象:</span>' +
-    '        <select id="adjTarget" style="font-size:11.5px;padding:2px 4px;max-width:140px;border:1px solid var(--line);border-radius:4px;background:var(--card);"></select>' +
-    '      </div>' +
-    '      <div class="adj-row">' +
-    '        <span>移動:</span>' +
-    '        <button class="adj-btn" id="adjUp" title="北へ移動">↑</button>' +
-    '        <button class="adj-btn" id="adjDown" title="南へ移動">↓</button>' +
-    '        <button class="adj-btn" id="adjLeft" title="西へ移動">←</button>' +
-    '        <button class="adj-btn" id="adjRight" title="東へ移動">→</button>' +
-    '      </div>' +
-    '      <div class="adj-row">' +
-    '        <span>拡縮:</span>' +
-    '        <button class="adj-btn" id="adjZoomIn" title="全体拡大">＋</button>' +
-    '        <button class="adj-btn" id="adjZoomOut" title="全体縮小">−</button>' +
-    '        <button class="adj-btn" id="adjWiden" title="横幅拡大">幅＋</button>' +
-    '        <button class="adj-btn" id="adjNarrow" title="横幅縮小">幅−</button>' +
-    '        <button class="adj-btn" id="adjTaller" title="縦幅拡大">高＋</button>' +
-    '        <button class="adj-btn" id="adjShorter" title="縦幅縮小">高−</button>' +
-    '      </div>' +
-    '      <div class="adj-row" style="margin-top:2px;">' +
-    '        <button class="adj-btn" id="adjSave" style="background:var(--accent);color:#fff;border-color:var(--accent);">位置を保存</button>' +
-    '        <button class="adj-btn" id="adjReset" style="color:var(--sub);">初期値</button>' +
+    '  </div>' +
+    '</div>' +
+    '<div id="adjustModal" style="display:none;">' +
+    '  <div class="adj-head">' +
+    '    <span class="adj-title">📐 区域図の位置微調整</span>' +
+    '    <div style="display:flex;align-items:center;gap:6px;">' +
+    '      <select id="adjTarget" style="font-size:14px;font-weight:700;padding:6px 8px;height:42px;border:2px solid var(--accent);border-radius:8px;background:var(--card);max-width:180px;"></select>' +
+    '      <button id="btnAdjClose" class="adj-large-btn" style="background:var(--sub);color:#fff;min-width:60px;height:42px;">完了</button>' +
+    '    </div>' +
+    '  </div>' +
+    '  <div class="adj-body">' +
+    '    <div class="adj-group">' +
+    '      <span class="adj-lbl">位置移動</span>' +
+    '      <div class="adj-dpad">' +
+    '        <div style="grid-column:2;grid-row:1;"><button class="adj-large-btn adj-arrow" id="adjUp" title="北へ移動">↑</button></div>' +
+    '        <div style="grid-column:1;grid-row:2;"><button class="adj-large-btn adj-arrow" id="adjLeft" title="西へ移動">←</button></div>' +
+    '        <div style="grid-column:2;grid-row:2;"><button class="adj-large-btn adj-arrow" id="adjDown" title="南へ移動">↓</button></div>' +
+    '        <div style="grid-column:3;grid-row:2;"><button class="adj-large-btn adj-arrow" id="adjRight" title="東へ移動">→</button></div>' +
     '      </div>' +
     '    </div>' +
+    '    <div class="adj-group" style="flex:1;min-width:170px;">' +
+    '      <span class="adj-lbl">サイズ・縦横比</span>' +
+    '      <div class="adj-size-grid">' +
+    '        <button class="adj-large-btn" id="adjZoomIn" title="全体拡大">全体 ＋</button>' +
+    '        <button class="adj-large-btn" id="adjZoomOut" title="全体縮小">全体 −</button>' +
+    '        <button class="adj-large-btn" id="adjWiden" title="横幅拡大">幅 ＋</button>' +
+    '        <button class="adj-large-btn" id="adjNarrow" title="横幅縮小">幅 −</button>' +
+    '        <button class="adj-large-btn" id="adjTaller" title="縦幅拡大">高 ＋</button>' +
+    '        <button class="adj-large-btn" id="adjShorter" title="縦幅縮小">高 −</button>' +
+    '      </div>' +
+    '    </div>' +
+    '  </div>' +
+    '  <div style="display:flex;gap:8px;margin-top:2px;">' +
+    '    <button class="adj-large-btn" id="adjSave" style="flex:2;background:var(--accent);color:#fff;font-size:15px;height:46px;">💾 この位置を保存</button>' +
+    '    <button class="adj-large-btn" id="adjReset" style="flex:1;background:var(--card);color:#d93025;border-color:#d93025;font-size:13.5px;height:46px;">初期位置</button>' +
     '  </div>' +
     '</div>' +
     '<div id="rec"><div id="recinner"><div id="rechead"><div style="flex:1;min-width:0;"><h2 id="rectitle" style="font-size:18px;font-weight:800;color:var(--text);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">訪問記録</h2><div id="rec-datetime" style="font-size:18px;color:var(--accent);margin-top:4px;font-weight:800;letter-spacing:-0.5px;"></div></div><button id="recclose">閉じる</button></div><div id="recbody"></div><div id="rec-dir" style="padding:10px 12px;display:none;background:var(--card);border-top:1px solid var(--line);"></div></div></div>' +
@@ -918,13 +934,14 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' const opSlider=document.getElementById("overlayOpacity");' +
     ' const opTxt=document.getElementById("opacityTxt");' +
     ' const btnAdj=document.getElementById("btnAdjustMode");' +
-    ' const adjBox=document.getElementById("adjustBox");' +
+    ' const adjModal=document.getElementById("adjustModal");' +
+    ' const btnAdjClose=document.getElementById("btnAdjClose");' +
     ' const selTarget=document.getElementById("adjTarget");' +
     ' let adjustMode=false;let adjustMarkers=[];' +
     ' function updateOverlayBar(){' +
     '  if(!obar)return;' +
     '  if(activeOverlays.size>0){' +
-    '   obar.style.display="block";' +
+    '   obar.style.display="flex";' +
     '   if(selTarget){' +
     '    const prevVal=selTarget.value;' +
     '    selTarget.innerHTML="";' +
@@ -962,7 +979,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '   {pos:[b[0][0],b[1][1]],idx:"se"}' +
     '  ];' +
     '  pts.forEach(p=>{' +
-    '   const m=L.marker(p.pos,{draggable:true,icon:L.divIcon({className:"corner-pin",iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map);' +
+    '   const m=L.marker(p.pos,{draggable:true,icon:L.divIcon({className:"corner-pin",iconSize:[24,24],iconAnchor:[12,12]})}).addTo(map);' +
     '   m.on("drag",()=>{' +
     '    const lat=m.getLatLng().lat;const lng=m.getLatLng().lng;' +
     '    if(p.idx==="sw"){b[0][0]=lat;b[0][1]=lng;}' +
@@ -984,10 +1001,11 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' function toggleAdjustMode(flag){' +
     '  adjustMode=(flag!==undefined)?flag:!adjustMode;' +
     '  if(btnAdj)btnAdj.classList.toggle("on",adjustMode);' +
-    '  if(adjBox)adjBox.style.display=adjustMode?"flex":"none";' +
+    '  if(adjModal)adjModal.style.display=adjustMode?"flex":"none";' +
     '  if(adjustMode)refreshAdjustMarkers();else clearAdjustMarkers();' +
     ' }' +
     ' if(btnAdj)btnAdj.onclick=()=>toggleAdjustMode();' +
+    ' if(btnAdjClose)btnAdjClose.onclick=()=>toggleAdjustMode(false);' +
     ' if(selTarget)selTarget.onchange=()=>refreshAdjustMarkers();' +
     ' function nudge(dLat,dLng,scaleLat,scaleLng){' +
     '  if(!selTarget||!selTarget.value)return;' +
@@ -999,18 +1017,18 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  b[0][0]=nLat-h/2;b[1][0]=nLat+h/2;b[0][1]=nLng-w/2;b[1][1]=nLng+w/2;' +
     '  item.layer.setBounds(b);refreshAdjustMarkers();' +
     ' }' +
-    ' const step=0.00008;' +
+    ' const step=0.00010;' +
     ' const bindAdj=(id,fn)=>{const el=document.getElementById(id);if(el)el.onclick=fn;};' +
     ' bindAdj("adjUp",()=>nudge(step,0,1,1));' +
     ' bindAdj("adjDown",()=>nudge(-step,0,1,1));' +
     ' bindAdj("adjLeft",()=>nudge(0,-step,1,1));' +
     ' bindAdj("adjRight",()=>nudge(0,step,1,1));' +
-    ' bindAdj("adjZoomIn",()=>nudge(0,0,1.015,1.015));' +
-    ' bindAdj("adjZoomOut",()=>nudge(0,0,0.985,0.985));' +
-    ' bindAdj("adjWiden",()=>nudge(0,0,1,1.015));' +
-    ' bindAdj("adjNarrow",()=>nudge(0,0,1,0.985));' +
-    ' bindAdj("adjTaller",()=>nudge(0,0,1.015,1));' +
-    ' bindAdj("adjShorter",()=>nudge(0,0,0.985,1));' +
+    ' bindAdj("adjZoomIn",()=>nudge(0,0,1.02,1.02));' +
+    ' bindAdj("adjZoomOut",()=>nudge(0,0,0.98,0.98));' +
+    ' bindAdj("adjWiden",()=>nudge(0,0,1,1.02));' +
+    ' bindAdj("adjNarrow",()=>nudge(0,0,1,0.98));' +
+    ' bindAdj("adjTaller",()=>nudge(0,0,1.02,1));' +
+    ' bindAdj("adjShorter",()=>nudge(0,0,0.98,1));' +
     ' bindAdj("adjSave",()=>{' +
     '  if(!selTarget||!selTarget.value)return;' +
     '  const id=selTarget.value;const item=overlayLayers[id];if(!item)return;' +
@@ -1273,6 +1291,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.14.002: 位置微調整モーダルを画面最上部へ移動し、誤タッチ防止のため全操作ボタンを大型化。\\n" +' +
     '      "・v1.11.14.001: 登戸区域地図（8画像）のオーバーレイ重ね合わせ表示、透過率スライダー、位置微調整機能を追加。\\n" +' +
     '      "・v1.11.14: 背景地図切替（国土地理院の最新・年代別空中写真など13種）とピン非表示ボタン、区域サイトリンクを追加。\\n" +' +
     '      "・v1.11.13: バージョン番号の再カウントアップと更新通知・デプロイ確認のためのテストリリース（機能変更なし）。\\n" +' +
