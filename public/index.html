@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>区域訪問マップ</title>
+<meta name="theme-color" content="#1a73e8">
+<meta name="color-scheme" content="light">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="区域訪問マップ">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png">
+<link rel="apple-touch-icon" href="https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png">
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #202124;
+    --sub: #5f6368;
+    --line: #dadce0;
+    --accent: #1a73e8;
+    --info-bg: #e8f0fe;
+    --info-line: #d1e3fa;
+    --info-text: #174ea6;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 20px;
+    padding-block: calc(env(safe-area-inset-top) + 40px) calc(env(safe-area-inset-bottom) + 40px);
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    text-align: center;
+  }
+
+  .icon {
+    width: 96px;
+    height: 96px;
+    border-radius: 22px;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, .16);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: .02em;
+  }
+
+  .open {
+    display: block;
+    width: 100%;
+    padding: 20px 24px;
+    border-radius: 16px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 20px;
+    font-weight: 800;
+    text-decoration: none;
+    box-shadow: 0 4px 14px rgba(26, 115, 232, .35);
+  }
+  .open:active { transform: scale(.98); box-shadow: 0 2px 8px rgba(26, 115, 232, .35); }
+
+  .note {
+    width: 100%;
+    background: var(--info-bg);
+    border: 1px solid var(--info-line);
+    border-radius: 14px;
+    padding: 16px 18px;
+    color: var(--info-text);
+    font-size: 15px;
+    line-height: 1.8;
+    text-align: left;
+  }
+  .note strong { font-weight: 800; }
+  .note .x {
+    display: inline-block;
+    min-width: 24px;
+    padding: 0 6px;
+    border: 1px solid var(--info-line);
+    border-radius: 6px;
+    background: #fff;
+    font-weight: 800;
+  }
+
+  .add {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 18px;
+    color: var(--sub);
+    font-size: 14px;
+    line-height: 1.8;
+    text-align: left;
+  }
+  .add strong { color: var(--text); }
+  .add ul { margin: 8px 0 0; padding-left: 20px; }
+  .add li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <img class="icon" src="https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png" alt="">
+
+  <h1>区域訪問マップ</h1>
+
+  <a class="open" href="https://script.google.com/macros/s/AKfycbxQKsGq8yR5BYEP9g7F3xgpXJHd--UwZOCQ6gPtYKUBuDoq-DLB27_-b_EAA9TWAZm_hA/exec">アプリを開く</a>
+
+  <div class="note">
+    開いたあと、画面の一番上に青い帯で
+    <strong>「このアプリケーションは Google Apps Script のユーザーによって作成されたものです」</strong>
+    と表示されます。<br>
+    安全ですので、右端の <span class="x">✕</span> をタップして閉じてお使いください。
+  </div>
+
+  <div class="add" id="addToHome" hidden>
+    <strong>ホーム画面に追加しておくと便利です</strong>
+    <ul>
+      <li>iPhone（Safari）: 画面下の共有ボタン 📤 →「ホーム画面に追加」</li>
+      <li>Android（Chrome）: 右上の ⋮ →「ホーム画面に追加」</li>
+    </ul>
+    次回から、このページをアイコンから直接開けます。
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ホーム画面から起動している場合は「追加のしかた」を出す必要がない
+  var standalone = (window.navigator.standalone === true) ||
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+
+  if (!standalone) {
+    document.getElementById('addToHome').hidden = false;
+  }
+})();
+</script>
+
+</body>
+</html>

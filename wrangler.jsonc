@@ -1,0 +1,8 @@
+{
+  // Cloudflare 側の既存プロジェクト名に合わせている（kuiki.h183skt.workers.dev）
+  "name": "kuiki",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./public"
+  }
+}
