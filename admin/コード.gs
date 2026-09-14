@@ -19,7 +19,7 @@ const CONFIG = {
   // 統合マスターのスプレッドシートID。
   // このスクリプトはスプレッドシートに紐付かないスタンドアロン構成のため、対象を明示する必要があります。
   // URL https://docs.google.com/spreadsheets/d/★この部分★/edit を貼り付けてください。
-  MASTER_SHEET_ID: '',
+  MASTER_SHEET_ID: '1Zpd6WJJcuBk4aVLW1p5wY7DZ5yBqotBUtHdsgijIBXw',
 
   // 「一時フォルダ」のID
   FOLDER_ID: '1QIxWM1P6znCjBT2V0BuoBAMNb9iByEAk',

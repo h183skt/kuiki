@@ -3,6 +3,13 @@
 区域スプレッドシートを「統合」シートへマージする、**オーナー専用**の管理ツールです。
 ウェブアプリ（リポジトリ直下の `webapp.gs`）からは一度も呼ばれません。
 
+## 移行先プロジェクト
+
+<https://script.google.com/d/1KGzqJ4GI75hMXkWuWRFmXMjQYfMErBX0TdOXu4Vnme57S-vtrqGSPXoH/edit>
+
+スクリプトIDは `.clasp.json`（gitignore 済み）に保持しています。
+別の環境から push する場合は、このIDで `admin/.clasp.json` を作り直してください。
+
 ## なぜ別プロジェクトに分けたのか
 
 Google Apps Script の OAuth スコープは**プロジェクト単位で合算**されます。
