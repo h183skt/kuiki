@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>区域訪問マップ</title>
+<meta name="theme-color" content="#1a73e8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="区域訪問マップ">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png">
+<link rel="apple-touch-icon" href="https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png">
+<style>
+  /* script.google.com の外枠バナーを切り落とす量。?top=40&bottom=30 で実機調整できます */
+  :root { --crop-top: 0px; --crop-bottom: 0px; }
+
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    overflow: hidden; background: #fff;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #stage { position: fixed; inset: 0; overflow: hidden; }
+
+  #app {
+    position: absolute; left: 0; width: 100%; border: 0; display: block;
+    top: calc(-1 * var(--crop-top));
+    height: calc(100% + var(--crop-top) + var(--crop-bottom));
+  }
+
+  #splash {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 18px;
+    padding: 0 24px; box-sizing: border-box;
+    background: #fff; color: #202124; text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    transition: opacity .35s ease;
+  }
+  #splash.hidden { opacity: 0; pointer-events: none; }
+  #splash img { width: 76px; height: 76px; border-radius: 18px; box-shadow: 0 6px 20px rgba(0,0,0,.15); }
+  #splash p { margin: 0; font-size: 14px; color: #5f6368; line-height: 1.8; }
+
+  .spinner {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 3px solid #e8eaed; border-top-color: #1a73e8;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #recover { display: none; flex-direction: column; align-items: center; gap: 12px; }
+  #recover.show { display: flex; }
+
+  .btn {
+    appearance: none; border: 0; cursor: pointer;
+    font: inherit; font-size: 15px; font-weight: 700;
+    padding: 12px 24px; border-radius: 999px;
+    background: #1a73e8; color: #fff; text-decoration: none;
+    box-shadow: 0 2px 8px rgba(26,115,232,.3);
+  }
+  .btn.sub { background: #f1f3f4; color: #3c4043; box-shadow: none; font-weight: 500; }
+  .btn:active { transform: scale(.97); }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <iframe id="app" title="区域訪問マップ"
+          allow="geolocation *; clipboard-write *"
+          referrerpolicy="no-referrer-when-downgrade"></iframe>
+</div>
+
+<div id="splash">
+  <img src="https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png" alt="">
+  <div class="spinner" id="spinner"></div>
+  <p id="status">区域訪問マップを読み込んでいます…</p>
+
+  <div id="recover">
+    <p>表示できない場合は、Google へのログインが必要です。<br>下のボタンで一度ログインしてから戻ってください。</p>
+    <div class="btn-row">
+      <a class="btn" id="loginBtn" target="_blank" rel="noopener">ログインして開く</a>
+      <button class="btn sub" id="reloadBtn" type="button">再読み込み</button>
+    </div>
+    <button class="btn sub" id="skipBtn" type="button">そのまま表示する</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var EXEC_URL = 'https://script.google.com/macros/s/AKfycbxQKsGq8yR5BYEP9g7F3xgpXJHd--UwZOCQ6gPtYKUBuDoq-DLB27_-b_EAA9TWAZm_hA/exec';
+  var READY_MSG = 'kuiki-app-ready';
+  var READY_ORIGIN = /^https:\/\/([a-z0-9-]+\.)*(googleusercontent|google)\.com$/;
+
+  var params = new URLSearchParams(location.search);
+
+  // ?direct=1 で素の GAS を開く（比較・デバッグ用）
+  if (params.get('direct') === '1') { location.replace(EXEC_URL); return; }
+
+  // ?top=40&bottom=30 で切り落とし量を上書きし、次回以降も記憶する
+  ['top', 'bottom'].forEach(function (k) {
+    var v = params.get(k);
+    try {
+      if (v !== null && /^\d+$/.test(v)) localStorage.setItem('crop-' + k, v);
+      var saved = localStorage.getItem('crop-' + k);
+      if (saved) document.documentElement.style.setProperty('--crop-' + k, saved + 'px');
+    } catch (e) { /* プライベートブラウズ等では既定値のまま */ }
+  });
+
+  // top/bottom/direct 以外のクエリは GAS にそのまま素通しする
+  var pass = new URLSearchParams();
+  params.forEach(function (value, key) {
+    if (key !== 'top' && key !== 'bottom' && key !== 'direct') pass.append(key, value);
+  });
+  var src = EXEC_URL + (pass.toString() ? '?' + pass.toString() : '');
+
+  var frame   = document.getElementById('app');
+  var splash  = document.getElementById('splash');
+  var spinner = document.getElementById('spinner');
+  var status  = document.getElementById('status');
+  var recover = document.getElementById('recover');
+
+  document.getElementById('loginBtn').href = EXEC_URL;
+
+  var ready = false;
+
+  function reveal() {
+    if (ready) return;
+    ready = true;
+    splash.classList.add('hidden');
+    setTimeout(function () { splash.style.display = 'none'; }, 400);
+  }
+
+  function showRecover() {
+    if (ready) return;
+    spinner.style.display = 'none';
+    status.textContent = '読み込みに時間がかかっています';
+    recover.classList.add('show');
+  }
+
+  function load() {
+    recover.classList.remove('show');
+    spinner.style.display = '';
+    status.textContent = '区域訪問マップを読み込んでいます…';
+    // キャッシュされた古い画面を避けるため毎回新しい URL を割り当てる
+    frame.src = src + (src.indexOf('?') === -1 ? '?' : '&') + '_t=' + Date.now();
+    clearTimeout(load.timer);
+    load.timer = setTimeout(showRecover, 7000);
+  }
+
+  // GAS 側（webapp.gs の buildHtml_ 末尾）から届く描画完了通知
+  window.addEventListener('message', function (e) {
+    if (e.data === READY_MSG && READY_ORIGIN.test(e.origin)) reveal();
+  });
+
+  // ログイン用タブから戻ってきたら自動で読み直す
+  document.addEventListener('visibilitychange', function () {
+    if (!ready && document.visibilityState === 'visible' && recover.classList.contains('show')) load();
+  });
+
+  document.getElementById('reloadBtn').addEventListener('click', load);
+  document.getElementById('skipBtn').addEventListener('click', reveal);
+
+  load();
+})();
+</script>
+
+</body>
+</html>

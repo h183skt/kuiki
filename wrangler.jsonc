@@ -1,0 +1,9 @@
+{
+  // Cloudflare 側のプロジェクト名と一致させてください（違う名前だと新しい Worker が作られます）
+  "name": "kuiki",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "single-page-application"
+  }
+}

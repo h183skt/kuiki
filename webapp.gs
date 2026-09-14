@@ -1666,5 +1666,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'if(vCloseIcon)vCloseIcon.onclick=()=>{if(vModal)vModal.style.display="none";};' +
     'if(vModal)vModal.onclick=(e)=>{if(e.target===vModal)vModal.style.display="none";};' +
     'if(vBtnUpdate)vBtnUpdate.onclick=()=>{vBtnUpdate.disabled=true;vBtnUpdate.textContent="更新中…";safeReload();};' +
+    // Cloudflare 側のラッパーページに「描画完了」を通知する（バナー非表示ラッパー用）。
+    // 素の /exec で開いた場合は top===window なので何も起きない。
+    'try{if(window.top!==window.self)window.top.postMessage("kuiki-app-ready","*");}catch(e){}' +
     '</script></body></html>';
 }

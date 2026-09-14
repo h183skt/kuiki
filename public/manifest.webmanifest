@@ -1,0 +1,19 @@
+{
+  "name": "区域訪問マップ",
+  "short_name": "区域マップ",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#1a73e8",
+  "icons": [
+    {
+      "src": "https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
