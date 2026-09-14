@@ -16,11 +16,6 @@
  */
 
 const CONFIG = {
-  // 統合マスターのスプレッドシートID。
-  // このスクリプトはスプレッドシートに紐付かないスタンドアロン構成のため、対象を明示する必要があります。
-  // URL https://docs.google.com/spreadsheets/d/★この部分★/edit を貼り付けてください。
-  MASTER_SHEET_ID: '1Zpd6WJJcuBk4aVLW1p5wY7DZ5yBqotBUtHdsgijIBXw',
-
   // 「一時フォルダ」のID
   FOLDER_ID: '1QIxWM1P6znCjBT2V0BuoBAMNb9iByEAk',
 
@@ -51,45 +46,12 @@ const CONFIG = {
   HISTORY_SHEET_NAME: '更新履歴', // 実行日時・内容を記録するシート（追記式）
 };
 
-/**
- * 統合マスターのスプレッドシートを開く。
- * ウェブアプリ側のOAuthスコープから DriveApp を切り離すため、この管理用スクリプトは
- * スプレッドシートにバインドせず独立したプロジェクトとして動かしている。
- * そのため getActiveSpreadsheet() は使えず、IDを指定して開く。
- */
-function getMaster_() {
-  if (!CONFIG.MASTER_SHEET_ID) {
-    throw new Error('CONFIG.MASTER_SHEET_ID が未設定です。統合マスターのスプレッドシートIDを設定してください。');
-  }
-  return SpreadsheetApp.openById(CONFIG.MASTER_SHEET_ID);
-}
-
-/** シートを開いたときにメニューを追加（インストーラブルトリガーから呼ばれる） */
+/** シートを開いたときにメニューを追加 */
 function onOpen() {
-  try {
-    SpreadsheetApp.getUi()
-      .createMenu('区域訪問記録アプリ')
-      .addItem('今すぐ更新', 'mergeAreaSheets')
-      .addToUi();
-  } catch (e) {
-    Logger.log('メニューの追加をスキップしました: ' + e);
-  }
-}
-
-/**
- * このスクリプトを新しいプロジェクトに移したあと、1回だけ実行してください。
- * スプレッドシートを開いたときのメニューを復元します。
- * （バインドされていないスクリプトの onOpen は自動では動かないため、トリガーを明示的に作ります）
- */
-function setupMenuTrigger() {
-  const id = CONFIG.MASTER_SHEET_ID;
-  if (!id) throw new Error('CONFIG.MASTER_SHEET_ID が未設定です。');
-
-  ScriptApp.getProjectTriggers().forEach(t => {
-    if (t.getHandlerFunction() === 'onOpen') ScriptApp.deleteTrigger(t);
-  });
-  ScriptApp.newTrigger('onOpen').forSpreadsheet(id).onOpen().create();
-  Logger.log('メニュー用のトリガーを設置しました。');
+  SpreadsheetApp.getUi()
+    .createMenu('区域訪問記録アプリ')
+    .addItem('今すぐ更新', 'mergeAreaSheets')
+    .addToUi();
 }
 
 /** メイン処理 */
@@ -103,7 +65,7 @@ function mergeAreaSheets() {
 
 function mergeAreaSheets_() {
   const folder = DriveApp.getFolderById(CONFIG.FOLDER_ID);
-  const masterId = CONFIG.MASTER_SHEET_ID;
+  const masterId = SpreadsheetApp.getActiveSpreadsheet().getId();
 
   const files = [];
   const it = folder.getFilesByType(MimeType.GOOGLE_SHEETS);
@@ -117,7 +79,7 @@ function mergeAreaSheets_() {
 
   files.sort((a, b) => leadingNumber_(a.getName()) - leadingNumber_(b.getName()));
 
-  const master = getMaster_();
+  const master = SpreadsheetApp.getActiveSpreadsheet();
   const numCols = CONFIG.LAST_COLUMN - CONFIG.FIRST_COLUMN + 1;
   const totalCols = numCols + 3; // エリア列 + データ列 + シートリンク列 + URL列
   const merged = [];
@@ -301,7 +263,7 @@ function setProgress_(current, total, label) {
     // 進捗表示のみに影響するため、失敗しても処理は継続する
   }
   try {
-    getMaster_().toast(
+    SpreadsheetApp.getActiveSpreadsheet().toast(
       current + ' / ' + total + ' 件処理中: ' + label,
       '区域データ更新中',
       -1
@@ -531,7 +493,11 @@ function createManualInDrive() {
     const htmlOutput = HtmlService.createHtmlOutputFromFile('map_app-guide');
     const pdfBlob = htmlOutput.getAs(MimeType.PDF);
     
-    const ss = getMaster_();
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      Logger.log('エラー: このスクリプトはスプレッドシートにバインドされていません。');
+      return;
+    }
     const file = DriveApp.getFileById(ss.getId());
     const parents = file.getParents();
     const folder = parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
