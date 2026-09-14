@@ -10,8 +10,12 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問マップ',
-  VERSION: 'v1.11.22',
+  VERSION: 'v1.11.23',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
+
+  // ScriptApp.getService().getUrl() が使えなかった場合に使う本番URL。
+  // OAuthスコープを最小限に絞っているため、念のための保険として持つ。
+  FALLBACK_URL: 'https://script.google.com/macros/s/AKfycbxQKsGq8yR5BYEP9g7F3xgpXJHd--UwZOCQ6gPtYKUBuDoq-DLB27_-b_EAA9TWAZm_hA/exec',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
   DEFAULT_COLOR: '#5f6368',
@@ -485,6 +489,21 @@ function doGet() {
   }
 }
 
+/**
+ * このウェブアプリのURLを返す。
+ * ScriptApp.getService() が何らかの理由で使えなくても画面が出せるよう、
+ * 取得に失敗したら WEBAPP.FALLBACK_URL にフォールバックする。
+ */
+function getWebAppUrl_() {
+  try {
+    const url = ScriptApp.getService().getUrl();
+    if (url) return url;
+  } catch (e) {
+    Logger.log('ウェブアプリURLの取得に失敗しました: ' + e);
+  }
+  return WEBAPP.FALLBACK_URL;
+}
+
 function doGet_() {
   try {
     ensureKeyManagementSheet_();
@@ -494,7 +513,7 @@ function doGet_() {
 
   const colorsJson = JSON.stringify(WEBAPP.TYPE_COLORS);
   const resultsJson = JSON.stringify(WEBAPP.REC_RESULTS);
-  const webappUrl = ScriptApp.getService().getUrl();
+  const webappUrl = getWebAppUrl_();
 
   // 初期読み込みではマンションデータを含めず空の配列を渡します。
   // クライアント側でメールアドレス入力後に getAppData を使って非同期ロードします。
@@ -1580,6 +1599,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.23: 初回起動時に求める権限を「スプレッドシート」と「メールアドレス」の2つだけに削減。ドライブ全体へのアクセス要求をなくしました。\\n" +' +
     '      "・v1.11.22: 区域地図表示時の「位置調整」ボタンを非表示にし、代わりに透過率を微調整できる＋－ボタンを追加。\\n" +' +
     '      "・v1.11.21: 拡大縮小（＋ー）ボタンを右下現在地ボタン上へ確実に配置。ピンの重ね順を上から青、混在、赤、グレーの順に調整。\\n" +' +
     '      "・v1.11.20: 拡大縮小（＋ー）ボタンの配置調整、訪問拒否（✕）ピンのグレー化、ピン表示ボタンを右端へ配置。\\n" +' +

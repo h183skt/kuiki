@@ -1,3 +1,4 @@
 .clasp.json
 .clasp.dev.json
 .clasp.prod.json
+admin/.clasp.json
