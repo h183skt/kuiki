@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問マップ',
-  VERSION: 'v1.11.23',
+  VERSION: 'v1.11.24',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -788,7 +788,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  <span id="user-email" style="font-size:11px;color:var(--sub);padding-left:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;"></span>' +
     '  <div id="pinToggleWrap" style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
     '    <div id="count" style="margin:0;font-size:12px;font-weight:700;color:var(--sub);white-space:nowrap;"></div>' +
-    '    <button id="btnPinToggle" type="button" class="pin-toggle-btn" aria-pressed="false">📍 ピン表示</button>' +
+    '    <button id="btnPinToggle" type="button" class="pin-toggle-btn">🚫 ピンを非表示</button>' +
     '  </div>' +
     '</div></header>' +
     '<main id="list"></main>' +
@@ -884,9 +884,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     'const btnPinToggle=document.getElementById("btnPinToggle");' +
     'function updatePinBtnUI(){' +
     '  if(!btnPinToggle)return;' +
-    '  btnPinToggle.textContent=hidePins?"🚫 ピン非表示":"📍 ピン表示";' +
+    '  btnPinToggle.textContent=hidePins?"📍 ピンを表示":"🚫 ピンを非表示";' +
     '  btnPinToggle.classList.toggle("pins-hidden",hidePins);' +
-    '  btnPinToggle.setAttribute("aria-pressed",hidePins?"true":"false");' +
     '}' +
     'if(btnPinToggle){' +
     '  btnPinToggle.onclick=()=>{hidePins=!hidePins;updatePinBtnUI();render();saveState();};' +
@@ -1503,6 +1502,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.24: ピン切替ボタンを、現在の状態ではなく押したときの動作を示すラベルに変更。\\n" +' +
     '      "・v1.11.23: ヘッダーの「区域サイト」を「登戸ポータル」に変更。ピン表示をエリア選択なしの1タップ切替に簡素化。\\n" +' +
     '      "・v1.11.22: 区域地図表示時の「位置調整」ボタンを非表示にし、代わりに透過率を微調整できる＋－ボタンを追加。\\n" +' +
     '      "・v1.11.21: 拡大縮小（＋ー）ボタンを右下現在地ボタン上へ確実に配置。ピンの重ね順を上から青、混在、赤、グレーの順に調整。\\n" +' +
