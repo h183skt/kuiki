@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問マップ',
-  VERSION: 'v1.11.27',
+  VERSION: 'v1.11.28',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -105,7 +105,9 @@ function getVisitRecords(url, buildingName) {
     const numRows = lastRow - start + 1;
     const firstCol = WEBAPP.REC_ROOM_COL;
     const numCols = WEBAPP.REC_FIRST_VISIT_COL - 1 + WEBAPP.REC_VISIT_COLS;
-    const disp = sheet.getRange(start, firstCol, numRows, numCols).getDisplayValues();
+    const dataRange = sheet.getRange(start, firstCol, numRows, numCols);
+    const disp = dataRange.getDisplayValues();
+    const backgrounds = dataRange.getBackgrounds();
 
     const rooms = [];
 
@@ -113,6 +115,8 @@ function getVisitRecords(url, buildingName) {
     for (let i = 0; i < disp.length; i += 2) {
       const topRow = disp[i];
       const botRow = (i + 1 < disp.length) ? disp[i + 1] : [];
+      const topBackgrounds = backgrounds[i] || [];
+      const botBackgrounds = (i + 1 < backgrounds.length) ? backgrounds[i + 1] : [];
 
       const room = String(topRow[WEBAPP.REC_ROOM_COL - 1] || '').trim();
       if (!room) continue;
@@ -134,7 +138,8 @@ function getVisitRecords(url, buildingName) {
         room: room,
         prev: prev,
         cells: cells,
-        rowTop: start + i
+        rowTop: start + i,
+        locked: isRoomBlackish_(topBackgrounds[0]) || isRoomBlackish_(botBackgrounds[0])
       });
     }
 
@@ -152,6 +157,21 @@ function getVisitRecords(url, buildingName) {
       error: friendlySheetAccessError_(e, 'read')
     };
   }
+}
+
+/**
+ * 訪問記録の号室セルが黒塗りかを判定する。
+ * 完全な黒だけでなく、シート上で黒として使われる濃いグレーも対象にする。
+ */
+function isRoomBlackish_(hex) {
+  const m = String(hex || '').trim().match(/^#([0-9a-f]{6})$/i);
+  if (!m) return false;
+
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return (r + g + b) / 3 < 60;
 }
 
 /* ============================================================
@@ -248,6 +268,19 @@ function saveVisitRecord(p) {
       return {
         ok: false,
         error: '指定された行に部屋番号が見つかりません。'
+      };
+    }
+
+    const roomBackgrounds = sheet
+      .getRange(resultRow, WEBAPP.REC_ROOM_COL, 2, 1)
+      .getBackgrounds();
+    const roomLocked = roomBackgrounds.some(function(row) {
+      return isRoomBlackish_(row && row[0]);
+    });
+    if (roomLocked) {
+      return {
+        ok: false,
+        error: 'この号室は黒塗りのため編集できません。'
       };
     }
 
@@ -692,6 +725,10 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.rectable .filled{background:#e8f0fe;}' +
     '.rectable td.active-cell{background:#fff9c4;}' +
     '.rectable td.past-cell{background:#dadce0;color:#70757a;}' +
+    '.rectable .rm.locked-room{background:#202124;color:#fff;}' +
+    '.rectable td.locked-cell{background:#e8eaed;color:#9aa0a6;cursor:not-allowed;}' +
+    '.rectable td.locked-cell:active{background:#e8eaed;}' +
+    '.rectable td.locked-cell .date{color:#9aa0a6;}' +
     '.recnote{font-size:12px;color:var(--sub);margin:0 0 8px;}' +
     '#edit{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;display:none;}' +
     '#editbox{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:16px 16px 0 0;padding:14px 16px 22px;max-height:calc(100vh - 24px);overflow:auto;}' +
@@ -1326,30 +1363,32 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' if(!res||!res.ok){body.innerHTML="<p class=recnote>読み込みに失敗しました: "+esc(res&&res.error?res.error:"不明なエラー")+"</p>";return;}' +
     ' if(!res.rooms||res.rooms.length===0){body.innerHTML="<p class=recnote>部屋データが見つかりませんでした。</p>";return;}' +
     ' const periods=res.periods;const reps=["1回目","2回目","3回目"];const curPi=currentPeriodIndex();' +
-    ' let h="<p class=recnote>セルをタップして記録を入力できます。</p>";' +
+    ' const hasLockedRooms=res.rooms.some(room=>room.locked);' +
+    ' let h="<p class=recnote>セルをタップして記録を入力できます。"+(hasLockedRooms?" 黒い号室は編集できません。":"")+"</p>";' +
     ' h+="<table class=rectable><thead><tr><th class=rm>部屋</th>";' +
     ' periods.forEach((p,pi)=>{reps.forEach(rep=>{h+="<th"+(pi===curPi?" class=\\"curp\\"":"")+">"+esc(p)+"<br>"+rep+"</th>";});});' +
     ' h+="</tr></thead><tbody>";' +
     ' res.rooms.forEach((room,ri)=>{' +
     '  const startCi=curPi*3;let targetCi=-1;' +
-    '  for(let offset=0;offset<3;offset++){' +
+    '  for(let offset=0;!room.locked&&offset<3;offset++){' +
     '    const ciTemp=startCi+offset;' +
     '    const cellTemp=room.cells[ciTemp];' +
     '    if(cellTemp&&!cellTemp.result&&!cellTemp.date){' +
     '      targetCi=ciTemp;break;' +
     '    }' +
     '  }' +
-    '  h+="<tr><td class=rm>"+esc(room.room)+"</td>";' +
+    '  h+="<tr><td class=\\"rm"+(room.locked?" locked-room":"")+"\\">"+esc(room.room)+"</td>";' +
     '  room.cells.forEach((cell,ci)=>{const f=(cell.result||cell.date)?" filled":"";' +
     '   const active=(ci===targetCi)?" active-cell":"";' +
     '   const pi=Math.floor(ci/3);const past=(pi<curPi)?" past-cell":"";' +
-    '   h+="<td class=\\"cell"+f+active+past+"\\" data-ri="+ri+" data-ci="+ci+"><div class=res>"+esc(cell.result)+"</div><div class=date>"+esc(cell.date)+"</div></td>";});' +
+    '   const locked=room.locked?" locked-cell":"";' +
+    '   h+="<td class=\\"cell"+f+active+past+locked+"\\" data-ri="+ri+" data-ci="+ci+(room.locked?" aria-disabled=\\"true\\" title=\\"黒塗りのため編集できません\\"":"")+"><div class=res>"+esc(cell.result)+"</div><div class=date>"+esc(cell.date)+"</div></td>";});' +
     '  h+="</tr>";});' +
     ' h+="</tbody></table>";body.innerHTML=h;' +
     ' const curp=body.querySelector("th.curp");' +
     ' if(curp){const rm=body.querySelector("th.rm");const off=rm?rm.offsetWidth:50;' +
     '  body.scrollLeft=curp.offsetLeft-off;}' +
-    ' [...body.querySelectorAll("td.cell")].forEach(td=>{td.onclick=()=>openEdit(Number(td.dataset.ri),Number(td.dataset.ci));});' +
+    ' [...body.querySelectorAll("td.cell:not(.locked-cell)")].forEach(td=>{td.onclick=()=>openEdit(Number(td.dataset.ri),Number(td.dataset.ci));});' +
     ' const r=curRec.r;const dirEl=document.getElementById("rec-dir");' +
     ' if(dirEl){' +
     '  if(r.lat!==null&&r.lng!==null){' +
@@ -1363,8 +1402,8 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '   dirEl.style.display="none";' +
     '  }' +
     ' }}' +
-    'function openEdit(ri,ci){try{history.pushState({m:"edit"},"");}catch(e){}' +
-    ' const room=curRec.data.rooms[ri];const cell=room.cells[ci];' +
+    'function openEdit(ri,ci){const room=curRec.data.rooms[ri];if(!room||room.locked)return;' +
+    ' try{history.pushState({m:"edit"},"");}catch(e){}const cell=room.cells[ci];' +
     ' curEdit={ri:ri,ci:ci,chosen:cell.result||"",clearMode:false};' +
     ' document.getElementById("edittitle").textContent=room.room+"号室　"+periodLabel(ci);' +
     ' const rr=document.getElementById("resrow");rr.innerHTML="";' +
@@ -1383,7 +1422,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' const ed=document.getElementById("edit");if(ed&&ed.style.display==="block"){closeEdit();return;}' +
     ' const rc=document.getElementById("rec");if(rc&&rc.style.display==="block"){closeRec();return;}' +
     '});' +
-    'function doSave(){if(!curEdit)return;const room=curRec.data.rooms[curEdit.ri];const cell=room.cells[curEdit.ci];' +
+    'function doSave(){if(!curEdit)return;const room=curRec.data.rooms[curEdit.ri];if(!room||room.locked){closeEdit();return;}const cell=room.cells[curEdit.ci];' +
     ' const newResult=curEdit.clearMode?"":(curEdit.chosen||"");const newDate=curEdit.clearMode?"":document.getElementById("editdate").value.trim();' +
     ' if(curEdit.clearMode&&!cell.result&&!cell.date){closeEdit();return;}' +
     ' if(curEdit.clearMode&&!confirm("このマスの記録を消去しますか？"))return;' +
@@ -1514,6 +1553,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.28: 建物全体の黒塗りは従来どおり開けないまま、記録シート内で黒塗りされた号室だけを編集不可として表示するよう変更。\\n" +' +
     '      "・v1.11.27: Cloudflare内への埋め込みでGoogle認証が401になる問題を解消。直接開く方式へ戻し、アドレスバーなしで使うためのホーム画面追加手順を修正。\\n" +' +
     '      "・v1.11.26: Cloudflare版をホーム画面から起動した際、Apps Scriptを同じ画面内に全画面表示してアドレスバーによる地図領域の縮小を防止。\\n" +' +
     '      "・v1.11.25: 記録タブの再作成でリンクのタブIDが古くなった場合は建物名から正しいタブを特定し、別ファイルへのリンクも正しいファイルを参照するよう修正。\\n" +' +
