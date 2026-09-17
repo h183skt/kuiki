@@ -30,11 +30,27 @@
   html, body {
     margin: 0;
     padding: 0;
+    width: 100%;
+    height: 100%;
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  body.app-mode { overflow: hidden; }
+  body.app-mode .wrap { display: none; }
+
+  .app-frame {
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    border: 0;
+    background: #fff;
   }
 
   .wrap {
@@ -147,13 +163,45 @@
 (function () {
   'use strict';
 
+  var appUrl = 'https://script.google.com/macros/s/AKfycbxQKsGq8yR5BYEP9g7F3xgpXJHd--UwZOCQ6gPtYKUBuDoq-DLB27_-b_EAA9TWAZm_hA/exec';
+
   // ホーム画面から起動している場合は「追加のしかた」を出す必要がない
   var standalone = (window.navigator.standalone === true) ||
     (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
 
-  if (!standalone) {
-    document.getElementById('addToHome').hidden = false;
+  if (standalone) {
+    // Cloudflareのオリジンから移動せず、Apps Scriptを全画面表示する。
+    // PWAの表示範囲内に留めることで、iPhoneのアドレスバー再表示を防ぐ。
+    document.body.classList.add('app-mode');
+
+    var frame = document.createElement('iframe');
+    frame.className = 'app-frame';
+    frame.title = '区域訪問マップ';
+    frame.src = appUrl;
+    frame.allow = 'geolocation; fullscreen';
+    document.body.appendChild(frame);
+
+    // アプリ内の更新操作でもCloudflareの全画面表示を維持する。
+    window.addEventListener('message', function (event) {
+      var isAppsScript = false;
+      try {
+        isAppsScript = new URL(event.origin).hostname.endsWith('-script.googleusercontent.com');
+      } catch (e) {}
+
+      if (event.data !== 'kuiki:reload' || !isAppsScript) return;
+
+      try {
+        event.source.postMessage('kuiki:reload-ack', event.origin);
+      } catch (e) {}
+
+      window.setTimeout(function () {
+        frame.src = appUrl + '?v=' + Date.now();
+      }, 50);
+    });
+    return;
   }
+
+  document.getElementById('addToHome').hidden = false;
 })();
 </script>
 
