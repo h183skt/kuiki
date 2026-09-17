@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問マップ',
-  VERSION: 'v1.11.28',
+  VERSION: 'v1.11.29',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -726,9 +726,9 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.rectable td.active-cell{background:#fff9c4;}' +
     '.rectable td.past-cell{background:#dadce0;color:#70757a;}' +
     '.rectable .rm.locked-room{background:#202124;color:#fff;}' +
-    '.rectable td.locked-cell{background:#e8eaed;color:#9aa0a6;cursor:not-allowed;}' +
-    '.rectable td.locked-cell:active{background:#e8eaed;}' +
-    '.rectable td.locked-cell .date{color:#9aa0a6;}' +
+    '.rectable td.locked-cell{background:#202124!important;color:#fff;cursor:not-allowed;}' +
+    '.rectable td.locked-cell:active{background:#202124!important;}' +
+    '.rectable td.locked-cell .date{color:#fff;}' +
     '.recnote{font-size:12px;color:var(--sub);margin:0 0 8px;}' +
     '#edit{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;display:none;}' +
     '#editbox{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:16px 16px 0 0;padding:14px 16px 22px;max-height:calc(100vh - 24px);overflow:auto;}' +
@@ -1553,6 +1553,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.29: 黒塗りで編集不可の号室を、号室欄だけでなく記録セルを含む行全体が黒く見える表示に変更。\\n" +' +
     '      "・v1.11.28: 建物全体の黒塗りは従来どおり開けないまま、記録シート内で黒塗りされた号室だけを編集不可として表示するよう変更。\\n" +' +
     '      "・v1.11.27: Cloudflare内への埋め込みでGoogle認証が401になる問題を解消。直接開く方式へ戻し、アドレスバーなしで使うためのホーム画面追加手順を修正。\\n" +' +
     '      "・v1.11.26: Cloudflare版をホーム画面から起動した際、Apps Scriptを同じ画面内に全画面表示してアドレスバーによる地図領域の縮小を防止。\\n" +' +
