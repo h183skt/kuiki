@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問マップ',
-  VERSION: 'v1.11.26',
+  VERSION: 'v1.11.27',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -1395,8 +1395,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '   else{alert("保存に失敗しました: "+(res&&res.error?res.error:"不明なエラー"));}' +
     '  }).withFailureHandler(err=>{btn.disabled=false;btn.textContent="保存";alert(friendlyErr(err,true));})' +
     '  .saveVisitRecord({url:curRec.r.url,name:curRec.r.name,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date});}' +
-    'function reloadTop(){const a=document.createElement("a");a.href=WEBAPP_URL;a.target="_top";document.body.appendChild(a);a.click();a.remove();}' +
-    'function safeReload(){if(window.top!==window.self){let ack=false;const onAck=e=>{if(e.data==="kuiki:reload-ack"){ack=true;window.removeEventListener("message",onAck);}};window.addEventListener("message",onAck);window.top.postMessage("kuiki:reload","*");setTimeout(()=>{window.removeEventListener("message",onAck);if(!ack)reloadTop();},500);return;}reloadTop();}' +
+    'function safeReload(){const a=document.createElement("a");a.href=WEBAPP_URL;a.target="_top";document.body.appendChild(a);a.click();a.remove();}' +
     'function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
     'function friendlyErr(err,forWrite){const m=String(err);const p=m.indexOf("権限")!==-1||m.toLowerCase().indexOf("permission")!==-1||m.toLowerCase().indexOf("access")!==-1;return p?(forWrite?"権限がないため保存できませんでした。スプレッドシートの編集権限が必要ですので、この画面を区域の係にお見せください。":"権限がないため記録シートを開けませんでした。スプレッドシートの閲覧権限が必要ですので、この画面を区域の係にお見せください。"):m;}' +
     'function attemptLogin() {' +
@@ -1515,6 +1514,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.27: Cloudflare内への埋め込みでGoogle認証が401になる問題を解消。直接開く方式へ戻し、アドレスバーなしで使うためのホーム画面追加手順を修正。\\n" +' +
     '      "・v1.11.26: Cloudflare版をホーム画面から起動した際、Apps Scriptを同じ画面内に全画面表示してアドレスバーによる地図領域の縮小を防止。\\n" +' +
     '      "・v1.11.25: 記録タブの再作成でリンクのタブIDが古くなった場合は建物名から正しいタブを特定し、別ファイルへのリンクも正しいファイルを参照するよう修正。\\n" +' +
     '      "・v1.11.24: ピン切替ボタンを、現在の状態ではなく押したときの動作を示すラベルに変更。\\n" +' +
