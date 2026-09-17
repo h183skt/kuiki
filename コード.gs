@@ -179,9 +179,22 @@ function mergeAreaSheets_() {
         richText[r][CONFIG.LINK_SOURCE_COLUMN - 1],
         formulas[r][CONFIG.LINK_SOURCE_COLUMN - 1]
       );
-      const gid = srcUrl ? extractGid_(srcUrl) : null;
+      let gid = srcUrl ? extractGid_(srcUrl) : null;
       if (gid !== null) {
-        const sheetUrl = fileUrlBase + '?gid=' + gid + '#gid=' + gid;
+        // リンクが別ファイルのシートを指す場合は、そのファイルIDを使う（gidはファイルごとに異なるため）
+        const srcFileM = String(srcUrl).match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+        const srcFileId = srcFileM ? srcFileM[1] : file.getId();
+
+        // タブが削除・再作成されるとマンション一覧のgidが古いまま残ることがある。
+        // 同じファイル内のリンクなら、マンション名に一致する現行タブのgidへ自動補正する。
+        if (srcFileId === file.getId() && !ss.getSheetById(Number(gid))) {
+          const targetName = normalizeSheetName_(nameText);
+          const matchedSheet = ss.getSheets().find(s => normalizeSheetName_(s.getName()) === targetName);
+          if (matchedSheet) gid = String(matchedSheet.getSheetId());
+        }
+
+        const base = srcFileM ? 'https://docs.google.com/spreadsheets/d/' + srcFileM[1] + '/edit' : fileUrlBase;
+        const sheetUrl = base + '?gid=' + gid + '#gid=' + gid;
         row.push('=HYPERLINK("' + sheetUrl + '","' + CONFIG.LINK_TEXT + '")'); // I列
         row.push(sheetUrl);                                                    // J列（裸のURL）
       } else {

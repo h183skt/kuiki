@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問マップ',
-  VERSION: 'v1.11.24',
+  VERSION: 'v1.11.25',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -52,7 +52,7 @@ const WEBAPP = {
  * 訪問記録 読み取り
  * ============================================================ */
 
-function getVisitRecords(url) {
+function getVisitRecords(url, buildingName) {
   const email = Session.getActiveUser().getEmail();
   try {
     if (!isValidAccess_(email)) {
@@ -81,11 +81,11 @@ function getVisitRecords(url) {
     // openSheetByUrl_() でスプレッドシートを開く際、権限がなければ自動でエラーが発生し、
     // catch ブロックの friendlySheetAccessError_() で検知されて適切なメッセージになります。
 
-    const sheet = openSheetByUrl_(url);
+    const sheet = openSheetByUrl_(url, buildingName);
     if (!sheet) {
       return {
         ok: false,
-        error: '指定されたスプレッドシートを開けませんでした。URLが正しいかご確認ください。'
+        error: 'この建物の訪問記録シート（タブ）が見つかりませんでした。マンション一覧のマンション名のリンク先をご確認ください。'
       };
     }
 
@@ -199,11 +199,11 @@ function saveVisitRecord(p) {
     // Google認証 (USER_ACCESSING) のため、hasPermissionToSheet_() は不要。
     // openSheetByUrl_() でエラーが発生すれば catch ブロックで処理されます。
 
-    const sheet = openSheetByUrl_(p.url);
+    const sheet = openSheetByUrl_(p.url, p.name);
     if (!sheet) {
       return {
         ok: false,
-        error: '指定されたスプレッドシートを開けませんでした。URLが正しいかご確認ください。'
+        error: 'この建物の訪問記録シート（タブ）が見つかりませんでした。マンション一覧のマンション名のリンク先をご確認ください。'
       };
     }
 
@@ -426,29 +426,41 @@ function getAllowedSheetKeys_() {
   return result;
 }
 
-function openSheetByUrl_(url) {
+function normalizeSheetName_(name) {
+  return String(name || '')
+    .normalize('NFKC')
+    .replace(/[（(][^）)]*[）)]\s*$/, '')
+    .replace(/[\s　]/g, '')
+    .toLowerCase();
+}
+
+function openSheetByUrl_(url, preferredSheetName) {
   const ids = parseSheetUrl_(url);
   if (!ids) return null;
 
   const ss = SpreadsheetApp.openById(ids.fileId);
-  let sheet = null;
+  const all = ss.getSheets();
 
   if (ids.gid !== null) {
-    const all = ss.getSheets();
-
     for (let i = 0; i < all.length; i++) {
       if (String(all[i].getSheetId()) === String(ids.gid)) {
-        sheet = all[i];
-        break;
+        return all[i];
       }
     }
   }
 
-  if (!sheet) {
-    sheet = ss.getSheets()[0];
+  // タブが削除・再作成されると、保存済みURLのgidが古くなることがある。
+  // その場合は建物名で正しいタブを探す。無関係な先頭タブにはフォールバックしない。
+  if (preferredSheetName) {
+    const target = normalizeSheetName_(preferredSheetName);
+    for (let i = 0; i < all.length; i++) {
+      if (normalizeSheetName_(all[i].getName()) === target) {
+        return all[i];
+      }
+    }
   }
 
-  return sheet;
+  return null;
 }
 
 function parseSheetUrl_(url) {
@@ -1307,7 +1319,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '      "登録（共有設定）が必要なアカウント:<br>" +' +
     '      "<div style=\\"background:#fff;border:1px solid #f5c2c7;border-radius:6px;padding:8px;text-align:center;font-size:16px;font-weight:800;text-decoration:underline;color:#202124;word-break:break-all;margin-top:8px;\\">" + esc(USER_EMAIL) + "</div></div>";' +
     '  }' +
-    '  html+="</div>";body.innerHTML=html;}).getVisitRecords(r.url);}' +
+    '  html+="</div>";body.innerHTML=html;}).getVisitRecords(r.url,r.name);}' +
     'function closeRec(){closeEdit();document.getElementById("rec").style.display="none";curRec=null;if(recTimer){clearInterval(recTimer);recTimer=null;}const dirEl=document.getElementById("rec-dir");if(dirEl)dirEl.style.display="none";}' +
     'function currentPeriodIndex(){return Math.floor(new Date().getMonth()/3);}' +
     'function renderRec(){const body=document.getElementById("recbody");const res=curRec.data;' +
@@ -1382,7 +1394,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '    closeEdit();openRec(curRec.r);}' +
     '   else{alert("保存に失敗しました: "+(res&&res.error?res.error:"不明なエラー"));}' +
     '  }).withFailureHandler(err=>{btn.disabled=false;btn.textContent="保存";alert(friendlyErr(err,true));})' +
-    '  .saveVisitRecord({url:curRec.r.url,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date});}' +
+    '  .saveVisitRecord({url:curRec.r.url,name:curRec.r.name,rowTop:room.rowTop,cellIndex:curEdit.ci,result:newResult,date:newDate,expectResult:cell.result,expectDate:cell.date});}' +
     'function safeReload(){const a=document.createElement("a");a.href=WEBAPP_URL;a.target="_top";document.body.appendChild(a);a.click();a.remove();}' +
     'function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
     'function friendlyErr(err,forWrite){const m=String(err);const p=m.indexOf("権限")!==-1||m.toLowerCase().indexOf("permission")!==-1||m.toLowerCase().indexOf("access")!==-1;return p?(forWrite?"権限がないため保存できませんでした。スプレッドシートの編集権限が必要ですので、この画面を区域の係にお見せください。":"権限がないため記録シートを開けませんでした。スプレッドシートの閲覧権限が必要ですので、この画面を区域の係にお見せください。"):m;}' +
@@ -1502,6 +1514,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.25: 記録タブの再作成でリンクのタブIDが古くなった場合は建物名から正しいタブを特定し、別ファイルへのリンクも正しいファイルを参照するよう修正。\\n" +' +
     '      "・v1.11.24: ピン切替ボタンを、現在の状態ではなく押したときの動作を示すラベルに変更。\\n" +' +
     '      "・v1.11.23: ヘッダーの「区域サイト」を「登戸ポータル」に変更。ピン表示をエリア選択なしの1タップ切替に簡素化。\\n" +' +
     '      "・v1.11.22: 区域地図表示時の「位置調整」ボタンを非表示にし、代わりに透過率を微調整できる＋－ボタンを追加。\\n" +' +
