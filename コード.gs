@@ -160,9 +160,10 @@ function mergeAreaSheets_() {
         addrInfo.get(addrText).names.push(nameText);
       }
 
-      // 拒否列が未記入でも、行内に黒塗りセルがあれば訪問拒否として扱う
+      // マンション一覧の行そのものが黒い場合は、建物全体を訪問拒否として扱う
       const stateIdx = CONFIG.STATE_COLUMN_INDEX; // row配列上の位置（areaName分1つ後ろにずれる）
-      if (String(row[stateIdx]).trim() === '' && backgrounds[r].some(isBlackish_)) {
+      const buildingBlack = backgrounds[r].some(isBlackish_);
+      if (String(row[stateIdx]).trim() === '' && buildingBlack) {
         row[stateIdx] = CONFIG.BLACKOUT_MARK;
 
         // 初回検知時のみ履歴に記録する（同じ黒塗りは毎回検知されるため、既知のものは警告を出さない）
@@ -191,6 +192,22 @@ function mergeAreaSheets_() {
           const targetName = normalizeSheetName_(nameText);
           const matchedSheet = ss.getSheets().find(s => normalizeSheetName_(s.getName()) === targetName);
           if (matchedSheet) gid = String(matchedSheet.getSheetId());
+        }
+
+        // 一覧の行は白く、記録シートの号室だけが黒い場合は、拒否列の〇を建物全体へ適用しない。
+        // 号室の編集制限は webapp.gs の getVisitRecords / saveVisitRecord で行う。
+        if (!buildingBlack && String(row[stateIdx]).trim() === CONFIG.BLACKOUT_MARK) {
+          try {
+            const linkedSs = srcFileId === file.getId() ? ss : SpreadsheetApp.openById(srcFileId);
+            const roomSheet = linkedSs.getSheetById(Number(gid));
+            if (roomSheet &&
+                normalizeSheetName_(roomSheet.getName()) === normalizeSheetName_(nameText) &&
+                hasBlackRoom_(roomSheet)) {
+              row[stateIdx] = '';
+            }
+          } catch (e) {
+            warnings.push('号室の黒塗りを確認できません: ' + areaName + ' / ' + nameText);
+          }
         }
 
         const base = srcFileM ? 'https://docs.google.com/spreadsheets/d/' + srcFileM[1] + '/edit' : fileUrlBase;
@@ -425,6 +442,25 @@ function isBlackish_(hex) {
   const n = parseInt(m[1], 16);
   const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
   return (r + g + b) / 3 < 60;
+}
+
+/** 記録シートのA列に、黒塗りされた号室があるか調べる。 */
+function hasBlackRoom_(sheet) {
+  const start = 6;
+  const last = sheet.getLastRow();
+  if (last < start) return false;
+
+  const range = sheet.getRange(start, 1, last - start + 1, 1);
+  const labels = range.getDisplayValues();
+  const backgrounds = range.getBackgrounds();
+  for (let i = 0; i < labels.length; i += 2) {
+    if (!String(labels[i][0] || '').trim()) continue;
+    if (isBlackish_(backgrounds[i][0]) ||
+        (i + 1 < backgrounds.length && isBlackish_(backgrounds[i + 1][0]))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

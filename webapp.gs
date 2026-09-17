@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問マップ',
-  VERSION: 'v1.11.29',
+  VERSION: 'v1.11.30',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -684,6 +684,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '.info{flex:1;min-width:0;}' +
     '.name{font-size:16px;font-weight:600;}' +
     '.name a{color:var(--accent);text-decoration:none;cursor:pointer;}' +
+    '.name a.disabled{color:var(--sub);cursor:not-allowed;}' +
     '.meta{font-size:12.5px;color:var(--sub);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;}' +
     '.badge{background:#e8f0fe;color:var(--accent);border-radius:6px;padding:1px 7px;font-weight:600;}' +
     '.maplink{flex:0 0 auto;font-size:13px;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:6px 10px;}' +
@@ -1011,7 +1012,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     ' if(hits.length===0){list.innerHTML="<div class=empty>該当なし</div>";return;}let lastArea=null;' +
     ' hits.forEach(r=>{if(r.area!==lastArea){lastArea=r.area;const h=document.createElement("div");h.className="ghead";h.textContent=r.area;list.appendChild(h);}' +
     '  const c=document.createElement("div");c.className="card";' +
-    '  const a=document.createElement("a");a.textContent=r.name;a.onclick=()=>openRec(r);' +
+    '  const a=document.createElement("a");a.textContent=r.name;if(r.state)a.className="disabled";else a.onclick=()=>openRec(r);' +
     '  const info=document.createElement("div");info.className="info";' +
     '  const nm=document.createElement("div");nm.className="name";nm.appendChild(a);' +
     '  const meta=document.createElement("div");meta.className="meta";' +
@@ -1338,7 +1339,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  });});' +
     '  mk.addTo(layer);});' +
     ' if(pts.length>0&&watchId===null&&!savedView)map.fitBounds(pts,{padding:[30,30],maxZoom:17});}' +
-    'function openRec(r){try{history.pushState({m:"rec"},"");}catch(e){}' +
+    'function openRec(r){if(!r||r.state)return;try{history.pushState({m:"rec"},"");}catch(e){}' +
     ' curSheetIndex=0;const m=document.getElementById("rec");m.style.display="block";' +
     ' document.getElementById("rectitle").textContent=r.name;' +
     ' const dirEl=document.getElementById("rec-dir");if(dirEl)dirEl.style.display="none";' +
@@ -1553,6 +1554,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.30: マンション一覧の行が白く号室だけ黒い場合は建物を開けるよう修正。建物全体が黒い場合の拒否は維持。\\n" +' +
     '      "・v1.11.29: 黒塗りで編集不可の号室を、号室欄だけでなく記録セルを含む行全体が黒く見える表示に変更。\\n" +' +
     '      "・v1.11.28: 建物全体の黒塗りは従来どおり開けないまま、記録シート内で黒塗りされた号室だけを編集不可として表示するよう変更。\\n" +' +
     '      "・v1.11.27: Cloudflare内への埋め込みでGoogle認証が401になる問題を解消。直接開く方式へ戻し、アドレスバーなしで使うためのホーム画面追加手順を修正。\\n" +' +
