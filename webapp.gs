@@ -10,7 +10,7 @@
 // 設定項目
 const WEBAPP = {
   TITLE: '区域訪問マップ',
-  VERSION: 'v1.11.30',
+  VERSION: 'v1.11.31',
   ICON_URL: 'https://5d5f3d7a.png-cdu.pages.dev/area_door_pin_icon_180.png',
   SHEET_NAME: '統合',
   CACHE_SHEET: '座標キャッシュ',
@@ -1554,6 +1554,7 @@ function buildHtml_(dataJson, colorsJson, resultsJson, webappUrl, userEmail) {
     '  btnVersion.onclick=()=>{' +
     '    const notesBody=' +
     '      "【最近の更新内容】\\n" +' +
+    '      "・v1.11.31: 登戸区域地図を、区域線・番号・目印だけが見える透過画像に変更（住宅地図部分を消去）。\\n" +' +
     '      "・v1.11.30: マンション一覧の行が白く号室だけ黒い場合は建物を開けるよう修正。建物全体が黒い場合の拒否は維持。\\n" +' +
     '      "・v1.11.29: 黒塗りで編集不可の号室を、号室欄だけでなく記録セルを含む行全体が黒く見える表示に変更。\\n" +' +
     '      "・v1.11.28: 建物全体の黒塗りは従来どおり開けないまま、記録シート内で黒塗りされた号室だけを編集不可として表示するよう変更。\\n" +' +
